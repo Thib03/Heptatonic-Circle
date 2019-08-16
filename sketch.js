@@ -2,6 +2,7 @@ var black = 0;
 var white = 255;
 var note;
 var millisecond = 0;
+var buttonPressed = -1;
 
 class Note {
   constructor(t,/*i,*/x,y,l,h) {
@@ -16,18 +17,28 @@ class Note {
 
     this.t = t;
     this.tc = black;
-    //this.i = i;
-    this.x = x;
-    this.y = y;
-    this.l = l;
-    this.h = h;
+
+    this.button.onPress = function() {
+      if(millis()-millisecond > 200) {
+        if(buttonPressed == -1) {
+          buttonPressed = 0;
+        }
+        millisecond = millis();
+      }
+
+      this.locate(mouseX-l/2,mouseY-h/2);
+    }
+
+    this.button.onHover = function() {
+      cursor(HAND);
+    }
+
+    this.button.onRelease = function() {
+      buttonPressed = -1;
+    }
 
     this.button.onOutside = function() {
       cursor(ARROW);
-    }
-
-    this.button.onHover = function(){
-      cursor(HAND);
     }
 
     /*this.button.onRelease = function(){
@@ -38,10 +49,10 @@ class Note {
   drawText() {
     fill(this.tc);
     textAlign(CENTER,CENTER);
-    textSize(0.4*pow(pow(this.l,2)*this.h,1/3));
+    textSize(0.4*pow(pow(this.button.width,2)*this.button.height,1/3));
     //textFont(font);
-    text(this.t,width/2+this.x,
-         height/2+this.y+0.003*dimension());
+    text(this.t,this.button.x+this.button.width/2,
+                this.button.y+this.button.height/2+0.003*dimension());
   }
 
   draw() {
@@ -69,18 +80,7 @@ function dimension() {
 function setup() {
   createCanvas(windowWidth, windowHeight);
 
-  note = new Note('B',0,0,0.1*dimension(),0.1*dimension());
-  note.button.onPress = function() {
-    if(millis()-millisecond > 200) {
-      if(note.button.color == 255) {
-        note.toggle(true);
-      }
-      else {
-        note.toggle(false);
-      }
-      millisecond = millis();
-    }
-  }
+  note = new Note('X',0,0,0.1*dimension(),0.1*dimension());
 }
 
 function draw() {
@@ -92,4 +92,9 @@ function draw() {
   circle(width/2,height/2,0.75*dimension(),0.75*dimension());
 
   note.draw();
+
+  if(buttonPressed > -1) {
+    note.button.locate(mouseX-note.button.width/2,
+                       mouseY-note.button.height/2);
+  }
 }
