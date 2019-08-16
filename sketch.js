@@ -19,7 +19,7 @@ class Note {
     this.tc = black;
 
     this.button.onPress = function() {
-      if(millis()-millisecond > 200) {
+      if(millis()-millisecond > 500) {
         if(buttonPressed == -1) {
           buttonPressed = 0;
         }
@@ -29,20 +29,16 @@ class Note {
       this.locate(mouseX-l/2,mouseY-h/2);
     }
 
-    this.button.onHover = function() {
+    /*this.button.onHover = function() {
       cursor(HAND);
-    }
+    }*/
 
     this.button.onRelease = function() {
       buttonPressed = -1;
     }
 
-    this.button.onOutside = function() {
+    /*this.button.onOutside = function() {
       cursor(ARROW);
-    }
-
-    /*this.button.onRelease = function(){
-      this.color = 255;
     }*/
   }
 
