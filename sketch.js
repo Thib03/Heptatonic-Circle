@@ -1,8 +1,9 @@
 var black = 0;
 var white = 255;
-var button;
+var note;
+var millisecond = 0;
 
-class Button {
+class Note {
   constructor(t,/*i,*/x,y,l,h) {
     this.button = new Clickable(width /2+x-l/2,
                                 height/2+y-h/2);
@@ -68,19 +69,27 @@ function dimension() {
 function setup() {
   createCanvas(windowWidth, windowHeight);
 
-  button = new Button('A',0,0,0.1*dimension(),0.1*dimension());
-  button.button.onPress = function() {
-      if(button.button.color == 255) {
-        button.toggle(true);
+  note = new Note('B',0,0,0.1*dimension(),0.1*dimension());
+  note.button.onPress = function() {
+    if(millis()-millisecond > 200) {
+      if(note.button.color == 255) {
+        note.toggle(true);
       }
       else {
-        button.toggle(false);
+        note.toggle(false);
       }
+      millisecond = millis();
+    }
   }
 }
 
 function draw() {
   background(255);
 
-  button.draw();
+  noFill();
+  stroke(black);
+  strokeWeight(0.0034*dimension());
+  circle(width/2,height/2,0.75*dimension(),0.75*dimension());
+
+  note.draw();
 }
