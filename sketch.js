@@ -15,6 +15,10 @@ var notes = [];
 var millisecond = 0;
 var notePressed = -1;
 
+var midiButton;
+var midi = false;
+var midiRadius = 0.35*littleRadius;
+
 function degToNdt(d) {
   switch(d) {
     default:
@@ -38,7 +42,7 @@ class Note {
     this.velocity = 0;
 
     this.button = new Clickable();
-    this.button.color = 255;
+    this.button.color = white;
     this.button.cornerRadius = 1000;
     this.button.stroke = black;
     this.button.text = '';
@@ -150,6 +154,47 @@ class Note {
   }
 }
 
+function initMidiButton() {
+  midiButton = new Clickable();
+  midiButton.color = white;
+  midiButton.cornerRadius = 1000;
+  midiButton.stroke = black;
+  midiButton.text = '';
+  midiButton.onPress = function() {
+    if(this.color == white) {
+      enableMidi();
+    }
+    else {
+      disableMidi();
+    }
+  }
+  updateMidiButton();
+}
+
+function updateMidiButton() {
+  let r = midiRadius*dimension;
+  midiButton.resize(2*r,2*r);
+  midiButton.locate(width/2 -r,
+                     height/2-r);
+  midiButton.strokeWeight = weight*dimension;
+}
+
+function drawMidiButton() {
+  midiButton.draw();
+
+  noStroke();
+  fill(midiButton.color==white?black:white);
+  let r  = 0.14*midiRadius*dimension;
+  let br = 0.6*midiRadius*dimension;
+  for(let n = 0; n < 5; n++) {
+    let a = n*PI/4;
+    circle(width/2+br*cos(a),height/2-br*sin(a),2*r,2*r);
+  }
+  let l = 0.7*midiRadius*dimension;
+  let h = 0.35*midiRadius*dimension;
+  rect(width/2-l/2,height/2+1.1*br,l,h,h);
+}
+
 function preload() {
   font = loadFont('nunito.ttf');
 }
@@ -163,11 +208,11 @@ function setup() {
     notes.push(new Note(d));
   }
 
-  enableMidi();
+  initMidiButton();
 }
 
 function draw() {
-  background(255);
+  background(white);
 
   noFill();
   stroke(black);
@@ -196,6 +241,8 @@ function draw() {
   if(notePressed > -1) {
     notes[notePressed].move();
   }
+
+  drawMidiButton();
 }
 
 function windowResized() {
@@ -206,6 +253,8 @@ function windowResized() {
   for(let n = 0; n < notes.length; n++) {
     notes[n].update();
   }
+
+  updateMidiButton();
 }
 
 //------------------------------------------------------------------------------
@@ -223,18 +272,22 @@ function enableMidi() {
     var i, num;
     var numStr = '0';
 
+    if(taille == 0) {
+      window.alert("No MIDI input device detected.");
+      disableMidi();
+      return;
+    }
+
     for(let i = 0; i < taille; i++) {
       num = i+1;
       liste += '   ' + num.toString() + '   -   ' + WebMidi.inputs[i].name + '\n';
     }
 
-    //console.log(liste);
-
     i = 0;
     num = 0;
 
     while((num < 1 || num > taille) && i < 3) {
-      numStr = window.prompt("Write the number of the desired input device:\n\n"+liste);
+      numStr = window.prompt("Write the number of the desired MIDI input device:\n\n"+liste);
       if(numStr == null)
       {
         num = 0;
@@ -259,11 +312,11 @@ function enableMidi() {
         input.addListener('keyaftertouch', 'all', handleAftertouch);
         input.addListener('keyaftertouch', 'all', handleAftertouch);
       }
+      midiButton.color  = black;
+      midiButton.stroke = white;
     }
   },true);
 }
-
-var pitchMinStr;
 
 function handleNoteOn(e) {
   var deg;
@@ -337,5 +390,8 @@ function disableMidi() {
 
   WebMidi.disable();
 
-  refresh();
+  midiButton.color  = white;
+  midiButton.stroke = black;
+
+  window.alert("MIDI disabled.");
 }
