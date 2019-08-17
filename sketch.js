@@ -99,7 +99,10 @@ class Note {
       case 6: text += 'A'; break;
       case 7: text += 'B'; break;
     }
-    switch(this.n-degToNdt(this.d)) {
+    let alt = this.n-degToNdt(this.d);
+    while(alt < -6) {alt += 12;}
+    while(alt >  6) {alt -= 12;}
+    switch(alt) {
       case -2: text += 'bb'; break;
       case -1: text += 'b';  break;
       case  0:               break;
@@ -161,12 +164,12 @@ function initMidiButton() {
   midiButton.stroke = black;
   midiButton.text = '';
   midiButton.onPress = function() {
-    if(this.color == white) {
+    //if(this.color == white) {
       enableMidi();
-    }
+    /*}
     else {
       disableMidi();
-    }
+    }*/
   }
   updateMidiButton();
 }
@@ -242,7 +245,9 @@ function draw() {
     notes[notePressed].move();
   }
 
-  drawMidiButton();
+  if(!midi) {
+    drawMidiButton();
+  }
 }
 
 function windowResized() {
@@ -312,8 +317,8 @@ function enableMidi() {
         input.addListener('keyaftertouch', 'all', handleAftertouch);
         input.addListener('keyaftertouch', 'all', handleAftertouch);
       }
-      midiButton.color  = black;
-      midiButton.stroke = white;
+      //midiButton.color  = black;
+      //midiButton.stroke = white;
     }
   },true);
 }
@@ -390,8 +395,8 @@ function disableMidi() {
 
   WebMidi.disable();
 
-  midiButton.color  = white;
-  midiButton.stroke = black;
+  //midiButton.color  = white;
+  //midiButton.stroke = black;
 
   window.alert("MIDI disabled.");
 }
