@@ -6,7 +6,10 @@ var weight = 0.005;
 var bigRadius = 0.35;
 var littleRadius = 0.0905;
 
-var angle;
+var velocity = [];
+for(let n = 0; n < 7; n++) {
+  velocity.push(0);
+}
 
 var notes = [];
 var millisecond = 0;
@@ -31,6 +34,8 @@ class Note {
     this.n = degToNdt(degree);
 
     this.angle = PI/2 - this.n*PI/6;
+
+    this.velocity = 0;
 
     this.button = new Clickable();
     this.button.color = 255;
@@ -102,10 +107,12 @@ class Note {
   }
 
   update() {
-    this.button.resize(2*littleRadius*dimension,2*littleRadius*dimension);
-    this.button.locate(width/2 +bigRadius*dimension*cos(this.angle)-littleRadius*dimension,
-                       height/2-bigRadius*dimension*sin(this.angle)-littleRadius*dimension);
-    this.button.strokeWeight = weight*dimension;
+    let vel = this.velocity;
+    let r = (littleRadius-vel*weight/2)*dimension;
+    this.button.resize(2*r,2*r);
+    this.button.locate(width/2 +bigRadius*dimension*cos(this.angle)-r,
+                       height/2-bigRadius*dimension*sin(this.angle)-r);
+    this.button.strokeWeight = (1+vel)*weight*dimension;
   }
 
   move() {
@@ -131,10 +138,10 @@ class Note {
   drawText() {
     fill(this.textColor);
     textAlign(CENTER,CENTER);
-    textSize(0.475*pow(pow(this.button.width,2)*this.button.height,1/3));
+    textSize(0.08*dimension);
     textFont(font);
     text(this.text,this.button.x+this.button.width/2,
-                   this.button.y+this.button.height/2-0.009*dimension);
+                   this.button.y+this.button.height/2-0.01*dimension);
   }
 
   draw() {
@@ -155,6 +162,8 @@ function setup() {
   for(let d = 1; d <= 7; d++) {
     notes.push(new Note(d));
   }
+
+  enableMidi();
 }
 
 function draw() {
@@ -174,8 +183,13 @@ function draw() {
   }
 
   for(let n = 0; n < notes.length; n++) {
+    var note = notes[n];
+    if(velocity[n] || note.velocity) {
+      note.velocity = lerp(note.velocity,velocity[n],0.75);
+      note.update();
+    }
     if(n != notePressed) {
-      notes[n].draw();
+      note.draw();
     }
   }
 
@@ -192,4 +206,136 @@ function windowResized() {
   for(let n = 0; n < notes.length; n++) {
     notes[n].update();
   }
+}
+
+//------------------------------------------------------------------------------
+//                             MIDI
+//------------------------------------------------------------------------------
+
+function enableMidi() {
+  midi = true;
+
+  WebMidi.enable(function (err) {
+    if (err) console.log("An error occurred", err);
+
+    var liste = '';
+    var taille = WebMidi.inputs.length;
+    var i, num;
+    var numStr = '0';
+
+    for(let i = 0; i < taille; i++) {
+      num = i+1;
+      liste += '   ' + num.toString() + '   -   ' + WebMidi.inputs[i].name + '\n';
+    }
+
+    //console.log(liste);
+
+    i = 0;
+    num = 0;
+
+    while((num < 1 || num > taille) && i < 3) {
+      numStr = window.prompt("Write the number of the desired input device:\n\n"+liste);
+      if(numStr == null)
+      {
+        num = 0;
+        break;
+      }
+      else if(numStr) num = parseInt(numStr);
+      i++;
+    }
+
+    if(num < 0 || !num || num > taille) {
+      disableMidi();
+    }
+    else {
+      noteOnCounter = 0;
+      var input = WebMidi.inputs[num-1];
+      console.log('input : ',input.name);
+      if(!input.hasListener('noteon', 'all', handleNoteOn)) {
+        input.addListener('noteon', 'all', handleNoteOn);
+        input.addListener('noteoff', 'all', handleNoteOff);
+      }
+      if(!input.hasListener('keyaftertouch', 'all', handleAftertouch)) {
+        input.addListener('keyaftertouch', 'all', handleAftertouch);
+        input.addListener('keyaftertouch', 'all', handleAftertouch);
+      }
+    }
+  },true);
+}
+
+var pitchMinStr;
+
+function handleNoteOn(e) {
+  var deg;
+  switch(e.note.number%12){
+    case 0: deg = 0; break;
+    //case 1:
+    case 2: deg = 1; break;
+    //case 3:
+    case 4: deg = 2; break;
+    case 5: deg = 3; break;
+    //case 6:
+    case 7: deg = 4; break;
+    //case 8:
+    case 9: deg = 5; break;
+    //case 10:
+    case 11: deg = 6; break;
+    default: return;
+  }
+
+  velocity[deg] = 5*e.velocity;
+}
+
+function handleAftertouch(e) {
+  var deg;
+  switch(e.note.number%12){
+    case 0: deg = 0; break;
+    //case 1:
+    case 2: deg = 1; break;
+    //case 3:
+    case 4: deg = 2; break;
+    case 5: deg = 3; break;
+    //case 6:
+    case 7: deg = 4; break;
+    //case 8:
+    case 9: deg = 5; break;
+    //case 10:
+    case 11: deg = 6; break;
+    default: return;
+  }
+
+  velocity[deg] = 6.5*e.value;
+}
+
+function handleNoteOff(e) {
+  var deg;
+  switch(e.note.number%12){
+    case 0: deg = 0; break;
+    //case 1:
+    case 2: deg = 1; break;
+    //case 3:
+    case 4: deg = 2; break;
+    case 5: deg = 3; break;
+    //case 6:
+    case 7: deg = 4; break;
+    //case 8:
+    case 9: deg = 5; break;
+    //case 10:
+    case 11: deg = 6; break;
+    default: return;
+  }
+
+  velocity[deg] = 0;
+}
+
+function disableMidi() {
+  midi = false;
+
+  for(let i = 0; i < WebMidi.inputs.length; i++) {
+    WebMidi.inputs[i].removeListener();
+  }
+
+  WebMidi.disable();
+
+  refresh();
 }
