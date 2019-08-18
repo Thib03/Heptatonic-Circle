@@ -106,6 +106,26 @@ class Note {
     this.update();
   }
 
+  alt() {
+    let a = this.n-degToNdt(this.d);
+    while(a < -6) {alt += 12;}
+    while(a >  6) {alt -= 12;}
+    return a;
+  }
+
+  midiNumber(octave) {
+    var oct = octave;
+    if     (this.d < 4 && this.n > 8) {
+      oct--;
+    }
+    else if(this.d > 4 && this.n < 3) {
+      oct++;
+    }
+    var n = oct*12+this.n;
+    if(n < 0) {n = 0};
+    return n;
+  }
+
   updateText() {
     var text = '';
     switch(this.d) {
@@ -118,10 +138,7 @@ class Note {
       case 6: text += 'A'; break;
       case 7: text += 'B'; break;
     }
-    let alt = this.n-degToNdt(this.d);
-    while(alt < -6) {alt += 12;}
-    while(alt >  6) {alt -= 12;}
-    switch(alt) {
+    switch(this.alt()) {
       case -2: text += 'bb'; break;
       case -1: text += 'b';  break;
       case  0:               break;
@@ -388,7 +405,7 @@ function handleNoteOn(e) {
   var deg = ndtToDeg(e.note.number%12);
   if(deg) {
     if(midi == 2) {
-      midiOutput.send(e.data[0],[(e.note.octave+1)*12+notes[deg-1].n,e.data[2]]);
+      midiOutput.send(e.data[0],[notes[deg-1].midiNumber(e.note.octave+1),e.data[2]]);
     }
     velocity[deg-1] = e.velocity;
   }
@@ -398,7 +415,7 @@ function handleAftertouch(e) {
   var deg = ndtToDeg(e.note.number%12);
   if(deg) {
     if(midi == 2) {
-      midiOutput.send(e.data[0],[(e.note.octave+1)*12+notes[deg-1].n,e.data[2]]);
+      midiOutput.send(e.data[0],[notes[deg-1].midiNumber(e.note.octave+1),e.data[2]]);
     }
     velocity[deg-1] = e.value;
   }
@@ -408,7 +425,7 @@ function handleNoteOff(e) {
   var deg = ndtToDeg(e.note.number%12);
   if(deg) {
     if(midi == 2) {
-      midiOutput.send(e.data[0],[(e.note.octave+1)*12+notes[deg-1].n,e.data[2]]);
+      midiOutput.send(e.data[0],[notes[deg-1].midiNumber(e.note.octave+1),e.data[2]]);
     }
     velocity[deg-1] = 0;
   }
