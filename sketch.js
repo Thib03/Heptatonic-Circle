@@ -16,8 +16,14 @@ var millisecond = 0;
 var notePressed = -1;
 
 var midiButton;
-var midi = false;
+var midi = 0;
 var midiRadius = 0.35*littleRadius;
+
+var midiInput, midiOutput;
+
+var noteOnStatus     = 144;
+var noteOffStatus    = 128;
+var aftertouchStatus = 160;
 
 function degToNdt(d) {
   switch(d) {
@@ -29,6 +35,19 @@ function degToNdt(d) {
     case 5: return 7;
     case 6: return 9;
 		case 7: return 11;
+  }
+}
+
+function ndtToDeg(n) {
+  switch(n){
+    case 0: return 1;
+    case 2: return 2;
+    case 4: return 3;
+    case 5: return 4;
+    case 7: return 5;
+    case 9: return 6;
+    case 11:return 7;
+    default: return false;
   }
 }
 
@@ -233,7 +252,7 @@ function draw() {
   for(let n = 0; n < notes.length; n++) {
     var note = notes[n];
     if(velocity[n] || note.velocity) {
-      note.velocity = lerp(note.velocity,velocity[n],0.75);
+      note.velocity = lerp(note.velocity,6.5*velocity[n],0.75);
       note.update();
     }
     if(n != notePressed) {
@@ -245,7 +264,7 @@ function draw() {
     notes[notePressed].move();
   }
 
-  if(!midi) {
+  if(midi == 0) {
     drawMidiButton();
   }
 }
@@ -267,10 +286,10 @@ function windowResized() {
 //------------------------------------------------------------------------------
 
 function enableMidi() {
-  midi = true;
-
   WebMidi.enable(function (err) {
     if (err) console.log("An error occurred", err);
+
+    //---------------------INPUT--------------------
 
     var liste = '';
     var taille = WebMidi.inputs.length;
@@ -303,91 +322,100 @@ function enableMidi() {
     }
 
     if(num < 0 || !num || num > taille) {
+      window.alert("No MIDI input selected. MIDI disabled.");
       disableMidi();
+      return;
     }
     else {
-      noteOnCounter = 0;
-      var input = WebMidi.inputs[num-1];
-      console.log('input : ',input.name);
-      if(!input.hasListener('noteon', 'all', handleNoteOn)) {
-        input.addListener('noteon', 'all', handleNoteOn);
-        input.addListener('noteoff', 'all', handleNoteOff);
+      midiInput = WebMidi.inputs[num-1];
+      window.alert('Input selected: ' + midiInput.name);
+      if(!midiInput.hasListener('noteon', 'all', handleNoteOn)) {
+        midiInput.addListener('noteon', 'all', handleNoteOn);
+        midiInput.addListener('noteoff', 'all', handleNoteOff);
       }
-      if(!input.hasListener('keyaftertouch', 'all', handleAftertouch)) {
-        input.addListener('keyaftertouch', 'all', handleAftertouch);
-        input.addListener('keyaftertouch', 'all', handleAftertouch);
+      if(!midiInput.hasListener('keyaftertouch', 'all', handleAftertouch)) {
+        midiInput.addListener('keyaftertouch', 'all', handleAftertouch);
+        midiInput.addListener('keyaftertouch', 'all', handleAftertouch);
       }
+      midi = 1;
       //midiButton.color  = black;
       //midiButton.stroke = white;
+    }
+
+    //--------------------OUTPUT--------------------
+
+    liste = '';
+    taille = WebMidi.outputs.length;
+    numStr = '0';
+
+    if(taille == 0) {
+      window.alert("No MIDI output device detected.");
+      return;
+    }
+
+    for(let i = 0; i < taille; i++) {
+      num = i+1;
+      liste += '   ' + num.toString() + '   -   ' + WebMidi.outputs[i].name + '\n';
+    }
+
+    i = 0;
+    num = 0;
+
+    while((num < 1 || num > taille) && i < 3) {
+      numStr = window.prompt("Write the number of the desired MIDI output device:\n\n"+liste);
+      if(numStr == null)
+      {
+        num = 0;
+        break;
+      }
+      else if(numStr) num = parseInt(numStr);
+      i++;
+    }
+
+    if(num < 0 || !num || num > taille) {
+      window.alert("No MIDI output selected. Input still works.");
+      return;
+    }
+    else {
+      midiOutput = WebMidi.outputs[num-1];
+      window.alert('Output selected: ' + midiOutput.name);
+      midi = 2;
     }
   },true);
 }
 
 function handleNoteOn(e) {
-  var deg;
-  switch(e.note.number%12){
-    case 0: deg = 0; break;
-    //case 1:
-    case 2: deg = 1; break;
-    //case 3:
-    case 4: deg = 2; break;
-    case 5: deg = 3; break;
-    //case 6:
-    case 7: deg = 4; break;
-    //case 8:
-    case 9: deg = 5; break;
-    //case 10:
-    case 11: deg = 6; break;
-    default: return;
+  var deg = ndtToDeg(e.note.number%12);
+  if(deg) {
+    if(midi == 2) {
+      midiOutput.send(e.data[0],[e.note.octave*12+notes[deg-1].n,e.data[2]]);
+    }
+    velocity[deg-1] = e.velocity;
   }
-
-  velocity[deg] = 5*e.velocity;
 }
 
 function handleAftertouch(e) {
-  var deg;
-  switch(e.note.number%12){
-    case 0: deg = 0; break;
-    //case 1:
-    case 2: deg = 1; break;
-    //case 3:
-    case 4: deg = 2; break;
-    case 5: deg = 3; break;
-    //case 6:
-    case 7: deg = 4; break;
-    //case 8:
-    case 9: deg = 5; break;
-    //case 10:
-    case 11: deg = 6; break;
-    default: return;
+  var deg = ndtToDeg(e.note.number%12);
+  if(deg) {
+    if(midi == 2) {
+      midiOutput.send(e.data[0],[e.note.octave*12+notes[deg-1].n,e.data[2]]);
+    }
+    velocity[deg-1] = e.value;
   }
-
-  velocity[deg] = 6.5*e.value;
 }
 
 function handleNoteOff(e) {
-  var deg;
-  switch(e.note.number%12){
-    case 0: deg = 0; break;
-    //case 1:
-    case 2: deg = 1; break;
-    //case 3:
-    case 4: deg = 2; break;
-    case 5: deg = 3; break;
-    //case 6:
-    case 7: deg = 4; break;
-    //case 8:
-    case 9: deg = 5; break;
-    //case 10:
-    case 11: deg = 6; break;
-    default: return;
+  var deg = ndtToDeg(e.note.number%12);
+  if(deg) {
+    if(midi == 2) {
+      midiOutput.send(e.data[0],[e.note.octave*12+notes[deg-1].n,e.data[2]]);
+    }
+    velocity[deg-1] = 0;
   }
-
-  velocity[deg] = 0;
 }
 
 function disableMidi() {
-  midi = false;
+  midi = 0;
 
   for(let i = 0; i < WebMidi.inputs.length; i++) {
     WebMidi.inputs[i].removeListener();
@@ -397,6 +425,4 @@ function disableMidi() {
 
   //midiButton.color  = white;
   //midiButton.stroke = black;
-
-  window.alert("MIDI disabled.");
 }
