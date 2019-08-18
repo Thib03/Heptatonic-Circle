@@ -388,7 +388,7 @@ function handleNoteOn(e) {
   var deg = ndtToDeg(e.note.number%12);
   if(deg) {
     if(midi == 2) {
-      midiOutput.send(e.data[0],[e.note.octave*12+notes[deg-1].n,e.data[2]]);
+      midiOutput.send(e.data[0],[(e.note.octave+1)*12+notes[deg-1].n,e.data[2]]);
     }
     velocity[deg-1] = e.velocity;
   }
@@ -398,7 +398,7 @@ function handleAftertouch(e) {
   var deg = ndtToDeg(e.note.number%12);
   if(deg) {
     if(midi == 2) {
-      midiOutput.send(e.data[0],[e.note.octave*12+notes[deg-1].n,e.data[2]]);
+      midiOutput.send(e.data[0],[(e.note.octave+1)*12+notes[deg-1].n,e.data[2]]);
     }
     velocity[deg-1] = e.value;
   }
@@ -408,7 +408,7 @@ function handleNoteOff(e) {
   var deg = ndtToDeg(e.note.number%12);
   if(deg) {
     if(midi == 2) {
-      midiOutput.send(e.data[0],[e.note.octave*12+notes[deg-1].n,e.data[2]]);
+      midiOutput.send(e.data[0],[(e.note.octave+1)*12+notes[deg-1].n,e.data[2]]);
     }
     velocity[deg-1] = 0;
   }
