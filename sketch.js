@@ -11,6 +11,11 @@ for(let n = 0; n < 7; n++) {
   velocity.push(0);
 }
 
+var number = [];
+for(let n = 0; n < 75; n++) {
+  number.push(0);
+}
+
 var notes = [];
 var millisecond = 0;
 var notePressed = -1;
@@ -24,6 +29,8 @@ var midiInput, midiOutput;
 var noteOnStatus     = 144;
 var noteOffStatus    = 128;
 var aftertouchStatus = 160;
+
+var synth;
 
 function degToNdt(d) {
   switch(d) {
@@ -193,6 +200,60 @@ class Note {
   }
 }
 
+class PolySynth {
+  constructor(num) {
+    this.voices = [];
+    for(let v = 0; v < num; v++) {
+      var env = new p5.Envelope();
+      var osc = new p5.Oscillator();
+      osc.setType('sine');
+      osc.amp(env);
+      osc.start();
+      this.voices.push([-1,osc,env]);
+    }
+  }
+
+  noteOn(pit,vel) {
+    var frq = 16.3515*exp(pit*log(2)/12);
+    var v;
+    for(v = 0; v < this.voices.length; v++) {
+      var voice = this.voices[v];
+      if(voice[0] == -1) {
+        voice[0] = pit;
+        voice[1].freq(frq);
+        voice[2].setRange(vel,0);
+        voice[2].setADSR(0.001,0.1,0.5,0.3);
+        voice[2].triggerAttack();
+        break;
+      }
+    }
+    if(v == this.voices.length) {
+      console.log('Maximum number of voices reached.');
+    }
+  }
+
+  aftertouch(pit,vel) {
+    for(let v = 0; v < this.voices.length; v++) {
+      var voice = this.voices[v];
+      if(voice[0] == pit) {
+        //voice[1].amp(vel);
+        break;
+      }
+    }
+  }
+
+  noteOff(pit) {
+    for(let v = 0; v < this.voices.length; v++) {
+      var voice = this.voices[v];
+      if(voice[0] == pit) {
+        voice[0] = -1;
+        voice[2].triggerRelease();
+        break;
+      }
+    }
+  }
+}
+
 function initMidiButton() {
   midiButton = new Clickable();
   midiButton.color = white;
@@ -248,6 +309,8 @@ function setup() {
   }
 
   initMidiButton();
+
+  synth = new PolySynth(6);
 }
 
 function draw() {
@@ -403,19 +466,31 @@ function enableMidi() {
 
 function handleNoteOn(e) {
   var deg = ndtToDeg(e.note.number%12);
+  var oct = e.note.octave+1;
   if(deg) {
+    var n = notes[deg-1].midiNumber(oct);
+    number[7*oct+deg-1] = n;
     if(midi == 2) {
-      midiOutput.send(e.data[0],[notes[deg-1].midiNumber(e.note.octave+1),e.data[2]]);
+      midiOutput.send(e.data[0],[n,e.data[2]]);
+    }
+    else {
+      synth.noteOn(n,e.velocity);
     }
     velocity[deg-1] = e.velocity;
+
   }
 }
 
 function handleAftertouch(e) {
   var deg = ndtToDeg(e.note.number%12);
+  var oct = e.note.octave+1;
   if(deg) {
+    var n = number[7*oct+deg-1];
     if(midi == 2) {
-      midiOutput.send(e.data[0],[notes[deg-1].midiNumber(e.note.octave+1),e.data[2]]);
+      midiOutput.send(e.data[0],[n,e.data[2]]);
+    }
+    else {
+      synth.aftertouch(n,e.value);
     }
     velocity[deg-1] = e.value;
   }
@@ -423,9 +498,14 @@ function handleAftertouch(e) {
 
 function handleNoteOff(e) {
   var deg = ndtToDeg(e.note.number%12);
+  var oct = e.note.octave+1;
   if(deg) {
+    var n = number[7*oct+deg-1];
     if(midi == 2) {
-      midiOutput.send(e.data[0],[notes[deg-1].midiNumber(e.note.octave+1),e.data[2]]);
+      midiOutput.send(e.data[0],[n,e.data[2]]);
+    }
+    else {
+      synth.noteOff(n);
     }
     velocity[deg-1] = 0;
   }
