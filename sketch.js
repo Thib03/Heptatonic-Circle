@@ -18,7 +18,7 @@ for(let n = 0; n < 75; n++) {
 
 var notesOn = [];
 for(let n = 0; n < 7; n++) {
-  notesOn.push(0);
+  notesOn.push([]);
 }
 
 var notes = [];
@@ -31,11 +31,14 @@ var midiRadius = 0.35*littleRadius;
 
 var midiInput, midiOutput;
 
-var noteOnStatus     = 144;
+/*var noteOnStatus     = 144;
 var noteOffStatus    = 128;
-var aftertouchStatus = 160;
+var aftertouchStatus = 160;*/
 
 var synth;
+
+var fonDeg = 0;
+//var fonNum = 130;
 
 function degToNdt(d) {
   switch(d) {
@@ -60,6 +63,16 @@ function ndtToDeg(n) {
     case 9: return 6;
     case 11:return 7;
     default: return false;
+  }
+}
+
+function degToColor(d) {
+  switch(d) {
+    case 1:  return [109,158,235];
+    case 3:  return [146,196,125];
+    case 5:  return [224,102,101];
+    case 7:  return [254,217,102];
+    default: return [217,217,217];
   }
 }
 
@@ -107,6 +120,22 @@ class Note {
             if(n != note.n) {
               note.n = n;
             }
+            else if(note.d == fonDeg) {
+              let i = note.d-1;
+              for(let d = 1; d <= 7; d++) {
+                notes[i].setColor(0);
+                i++;
+                i %= 7;
+              }
+            }
+            else {
+              let i = note.d-1;
+              for(let d = 1; d <= 7; d++) {
+                notes[i].setColor(d);
+                i++;
+                i %= 7;
+              }
+            }
           }
         }
         note.angle = PI/2 - note.n*PI/6;
@@ -136,6 +165,14 @@ class Note {
     var n = oct*12+this.n;
     if(n < 0) {n = 0};
     return n;
+  }
+
+  setColor(d) {
+    if(!d) {
+      this.button.color = white;
+      return;
+    }
+    this.button.color = degToColor(d);
   }
 
   updateText() {
@@ -336,6 +373,15 @@ function draw() {
          width/2+(r-dr)*cos(a),height/2-(r-dr)*sin(a));
   }
 
+  /*if(fonDeg) {
+    var n = fonDeg-1;
+    for(let d = 1; d <= 7; d++) {
+      notes[n].setColor(d);
+      n++;
+      n %= 7;
+    }
+  }*/
+
   for(let n = 0; n < notes.length; n++) {
     var note = notes[n];
     if(velocity[n] || note.velocity) {
@@ -473,33 +519,73 @@ function enableMidi() {
 
 function handleNoteOn(e) {
   var deg = ndtToDeg(e.note.number%12);
-  var oct = e.note.octave+1;
   if(deg) {
-    var n = notes[deg-1].midiNumber(oct);
-    number[7*oct+deg-1] = n;
+    var oct = e.note.octave+1;
+    var vel = e.velocity;
+    var num = notes[deg-1].midiNumber(oct);
+    number[7*oct+deg-1] = num;
     if(midi == 2) {
-      midiOutput.send(e.data[0],[n,e.data[2]]);
+      midiOutput.send(e.data[0],[num,e.data[2]]);
     }
     else {
-      synth.noteAttack(n,e.velocity);
+      synth.noteAttack(num,vel);
     }
-    notesOn[deg-1]++;
-    velocity[deg-1] = e.velocity;
+    notesOn[deg-1].push([num,vel]);
+    var l = notesOn[deg-1].length;
+    if(l > 1) {
+      var max = 0;
+      var v;
+      for(let i = 0; i < l; i++) {
+        v = notesOn[deg-1][i][1];
+        if(v > max) {
+          max = v;
+        }
+      }
+      velocity[deg-1] = max;
+    }
+    else {
+      velocity[deg-1] = vel;
+    }
+    /*if(!fonDeg || num < fonNum) {
+      fonDeg = deg;
+      fonNum = num;
+    }*/
   }
 }
 
 function handleAftertouch(e) {
   var deg = ndtToDeg(e.note.number%12);
-  var oct = e.note.octave+1;
   if(deg) {
-    var n = number[7*oct+deg-1];
+    var oct = e.note.octave+1;
+    var vel = e.value;
+    var num = number[7*oct+deg-1];
     if(midi == 2) {
-      midiOutput.send(e.data[0],[n,e.data[2]]);
+      midiOutput.send(e.data[0],[num,e.data[2]]);
     }
     else {
-      synth.noteAftertouch(n,e.value);
+      synth.noteAftertouch(num,vel);
     }
-    velocity[deg-1] = e.value;
+    var l = notesOn[deg-1].length;
+    for(let i = 0; i < l; i++) {
+      if(notesOn[deg-1][i][0] == num) {
+        notesOn[deg-1][i][1] = vel;
+        break;
+      }
+    }
+    if(l > 1) {
+      var max = 0;
+      var v;
+      for(let i = 0; i < l; i++) {
+        v = notesOn[deg-1][i][1];
+        if(v > max) {
+          max = v;
+        }
+      }
+      velocity[deg-1] = max;
+    }
+    else {
+      velocity[deg-1] = vel;
+    }
   }
 }
 
@@ -507,17 +593,54 @@ function handleNoteOff(e) {
   var deg = ndtToDeg(e.note.number%12);
   var oct = e.note.octave+1;
   if(deg) {
-    var n = number[7*oct+deg-1];
+    var num = number[7*oct+deg-1];
     if(midi == 2) {
-      midiOutput.send(e.data[0],[n,e.data[2]]);
+      midiOutput.send(e.data[0],[num,e.data[2]]);
     }
     else {
-      synth.noteRelease(n);
+      synth.noteRelease(num);
     }
-    notesOn[deg-1]--;
-    if(notesOn[deg-1] == 0) {
+    var l = notesOn[deg-1].length;
+    for(let i = 0; i < l; i++) {
+      if(notesOn[deg-1][i][0] == num) {
+        notesOn[deg-1].splice(i,1);
+        l--;
+        break;
+      }
+    }
+    if(l >= 1) {
+      var max = 0;
+      var v;
+      for(let i = 0; i < l; i++) {
+        v = notesOn[deg-1][i][1];
+        if(v > max) {
+          max = v;
+        }
+      }
+      velocity[deg-1] = max;
+    }
+    else {
       velocity[deg-1] = 0;
     }
+    /*if(fonDeg && fonNum == num) {
+      var minDeg = 0;
+      var minNum = 130;
+      for(let i = 0; i < 7; i++) {
+        for(let j = 0; j < notesOn[i].length; j++) {
+          if(notesOn[i][j][0] < minNum) {
+            minDeg = i+1;
+            minNum = notesOn[i][j][0];
+          }
+        }
+      }
+      fonDeg = minDeg;
+      fonNum = minNum;
+      if(!minDeg) {
+        for(let i = 0; i < 7; i++) {
+          notes[i].setColor(0);
+        }
+      }
+    }*/
   }
 }
 
