@@ -241,7 +241,7 @@ class PolySynth {
     for(let v = 0; v < this.voices.length; v++) {
       var voice = this.voices[v];
       if(voice[0] == pit) {
-        voice[1].amp(vel);
+        //voice[1].amp(vel);
         break;
       }
     }
@@ -497,9 +497,9 @@ function handleAftertouch(e) {
       midiOutput.send(e.data[0],[n,e.data[2]]);
     }
     else {
-      //synth.noteAftertouch(n,e.value);
+      synth.noteAftertouch(n,e.value);
     }
-    //velocity[deg-1] = e.value;
+    velocity[deg-1] = e.value;
   }
 }
 
