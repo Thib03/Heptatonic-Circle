@@ -16,6 +16,11 @@ for(let n = 0; n < 75; n++) {
   number.push(0);
 }
 
+var notesOn = [];
+for(let n = 0; n < 7; n++) {
+  notesOn.push(0);
+}
+
 var notes = [];
 var millisecond = 0;
 var notePressed = -1;
@@ -213,7 +218,7 @@ class PolySynth {
     }
   }
 
-  noteOn(pit,vel) {
+  noteAttack(pit,vel) {
     var frq = 16.3515*exp(pit*log(2)/12);
     var v;
     for(v = 0; v < this.voices.length; v++) {
@@ -232,17 +237,17 @@ class PolySynth {
     }
   }
 
-  aftertouch(pit,vel) {
+  noteAftertouch(pit,vel) {
     for(let v = 0; v < this.voices.length; v++) {
       var voice = this.voices[v];
       if(voice[0] == pit) {
-        //voice[1].amp(vel);
+        voice[1].amp(vel);
         break;
       }
     }
   }
 
-  noteOff(pit) {
+  noteRelease(pit) {
     for(let v = 0; v < this.voices.length; v++) {
       var voice = this.voices[v];
       if(voice[0] == pit) {
@@ -311,6 +316,8 @@ function setup() {
   initMidiButton();
 
   synth = new PolySynth(6);
+  /*synth = new p5.PolySynth();
+  synth.setADSR(0.001,0.1,0.5,0.3);*/
 }
 
 function draw() {
@@ -474,10 +481,10 @@ function handleNoteOn(e) {
       midiOutput.send(e.data[0],[n,e.data[2]]);
     }
     else {
-      synth.noteOn(n,e.velocity);
+      synth.noteAttack(n,e.velocity);
     }
+    notesOn[deg-1]++;
     velocity[deg-1] = e.velocity;
-
   }
 }
 
@@ -490,9 +497,9 @@ function handleAftertouch(e) {
       midiOutput.send(e.data[0],[n,e.data[2]]);
     }
     else {
-      synth.aftertouch(n,e.value);
+      //synth.noteAftertouch(n,e.value);
     }
-    velocity[deg-1] = e.value;
+    //velocity[deg-1] = e.value;
   }
 }
 
@@ -505,9 +512,12 @@ function handleNoteOff(e) {
       midiOutput.send(e.data[0],[n,e.data[2]]);
     }
     else {
-      synth.noteOff(n);
+      synth.noteRelease(n);
     }
-    velocity[deg-1] = 0;
+    notesOn[deg-1]--;
+    if(notesOn[deg-1] == 0) {
+      velocity[deg-1] = 0;
+    }
   }
 }
 
