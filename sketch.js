@@ -31,11 +31,15 @@ var midiRadius = 0.35*littleRadius;
 
 var midiInput, midiOutput;
 
-var launchpad = false;
+var launchpad;
+var lightGrid = [];
+for(let n = 0; n < 8; n++) {
+  lightGrid.push([]);
+}
 
-/*var noteOnStatus     = 144;
+var noteOnStatus     = 144;
 var noteOffStatus    = 128;
-var aftertouchStatus = 160;*/
+var aftertouchStatus = 160;
 
 var synth;
 
@@ -71,7 +75,16 @@ function ndtToDeg(n) {
   }
 }
 
-function degToColor(d) {
+function degToColor(d,light=false) {
+  if(light) {
+    switch(d) {
+      case 1:  return 41;
+      case 3:  return 25;
+      case 5:  return 60;
+      case 7:  return 13;
+      default: return 70;
+    }
+  }
   switch(d) {
     case 1:  return [109,158,235];
     case 3:  return [146,196,125];
@@ -128,11 +141,14 @@ class Note {
             if(n != note.n) {
               note.n = n;
             }
-            else if(dragDist < dragLimit*dimension)
+            else if(dragDist < dragLimit*dimension) {
               if(note.d == fonDeg) {
                 fonDeg = 0;
                 for(let d = 1; d <= 7; d++) {
                   notes[d-1].setColor(0);
+                }
+                if(launchpad.isOn) {
+                  launchpad.update();
                 }
               }
               else {
@@ -143,7 +159,11 @@ class Note {
                   i++;
                   i %= 7;
                 }
+                if(launchpad.isOn) {
+                  launchpad.update();
+                }
               }
+            }
           }
         }
         note.angle = PI/2 - note.n*PI/6;
@@ -157,13 +177,17 @@ class Note {
 
   alt() {
     let a = this.n-degToNdt(this.d);
-    while(a < -6) {alt += 12;}
-    while(a >  6) {alt -= 12;}
+    while(a < -6) {a += 12;}
+    while(a >  6) {a -= 12;}
     return a;
   }
 
-  midiNumber(octave) {
+  midiNumber(octave,arg = -5) {
     var oct = octave;
+    if(arg != -5) {
+      var num = oct;
+      oct = arg;
+    }
     if     (this.d < 4 && this.n > 8) {
       oct--;
     }
@@ -304,6 +328,39 @@ class PolySynth {
   }
 }
 
+class Launchpad {
+  constructor() {
+    this.isOn = false;
+    this.output = null;
+  }
+
+  turnOn(output) {
+    this.output = WebMidi.getOutputByName(output);
+    this.isOn = true;
+    this.update();
+  }
+
+  update() {
+    if(fonDeg) {
+      var d = (8-fonDeg)%7+1;
+      for(var r = 1; r <= 8; r++) {
+        for(var c = 1; c <= 8; c++) {
+          this.output.send(noteOnStatus,[r*10+c,degToColor(d,true)]);
+          d = d%7+1;
+        }
+        d = (d+2)%7+1;
+      }
+    }
+    else {
+      for(var r = 1; r <= 8; r++) {
+        for(var c = 1; c <= 8; c++) {
+          this.output.send(noteOnStatus,[r*10+c,0]);
+        }
+      }
+    }
+  }
+}
+
 function initMidiButton() {
   midiButton = new Clickable();
   midiButton.color = white;
@@ -363,6 +420,8 @@ function setup() {
   synth = new PolySynth(6);
   /*synth = new p5.PolySynth();
   synth.setADSR(0.001,0.1,0.5,0.3);*/
+
+  launchpad = new Launchpad();
 }
 
 function draw() {
@@ -475,7 +534,12 @@ function enableMidi() {
     }
     else {
       midiInput = WebMidi.inputs[num-1];
-      window.alert('Input selected: ' + midiInput.name);
+      let name = midiInput.name;
+      if(name == 'MIDIIN2 (Launchpad Pro)') {
+        launchpad.turnOn('MIDIOUT2 (Launchpad Pro)');
+        name += '.\nColours will be displayed on the matrix. Please put your Launchpad Pro into Programmer Mode';
+      }
+      window.alert('Input selected: ' + name + '.');
       if(!midiInput.hasListener('noteon',      'all', handleNoteOn)) {
         midiInput.addListener('noteon',        'all', handleNoteOn);
         midiInput.addListener('keyaftertouch', 'all', handleAftertouch);
@@ -499,7 +563,12 @@ function enableMidi() {
 
     for(let i = 0; i < taille; i++) {
       num = i+1;
-      liste += '   ' + num.toString() + '   -   ' + WebMidi.outputs[i].name + '\n';
+      var name = WebMidi.outputs[i].name;
+      if(name != 'Launchpad Pro' &&
+         name != 'MIDIOUT2 (Launchpad Pro)' &&
+         name != 'MIDIOUT3 (Launchpad Pro)'){
+        liste += '   ' + num.toString() + '   -   ' + name + '\n';
+      }
     }
 
     i = 0;
@@ -522,18 +591,32 @@ function enableMidi() {
     }
     else {
       midiOutput = WebMidi.outputs[num-1];
-      window.alert('Output selected: ' + midiOutput.name);
+      window.alert('Output selected: ' + midiOutput.name + '.');
       midi = 2;
     }
   },true);
 }
 
+//--------------------EVENTS--------------------
+
+var oct0 = 3;
+
 function handleNoteOn(e) {
-  var deg = ndtToDeg(e.note.number%12);
+  var deg, oct;
+  var num = e.note.number;
+  if(launchpad.isOn) {
+    let row = Math.floor(num/10)-1;
+    let col = num%10-1;
+    deg = (col+4*row)%7+1;
+    oct = oct0+Math.floor((col+4*row)/7);
+  }
+  else {
+    deg = ndtToDeg(num%12);
+    oct = e.note.octave+1;
+  }
   if(deg) {
-    var oct = e.note.octave+1;
     var vel = e.velocity;
-    var num = notes[deg-1].midiNumber(oct);
+    num = notes[deg-1].midiNumber(oct);
     number[7*oct+deg-1] = num;
     if(midi == 2) {
       midiOutput.send(e.data[0],[num,e.data[2]]);
@@ -565,11 +648,21 @@ function handleNoteOn(e) {
 }
 
 function handleAftertouch(e) {
-  var deg = ndtToDeg(e.note.number%12);
+  var deg, oct;
+  var num = e.note.number;
+  if(launchpad.isOn) {
+    let row = Math.floor(num/10)-1;
+    let col = num%10-1;
+    deg = (col+4*row)%7+1;
+    oct = oct0+Math.floor((col+4*row)/7);
+  }
+  else {
+    deg = ndtToDeg(num%12);
+    oct = e.note.octave+1;
+  }
   if(deg) {
-    var oct = e.note.octave+1;
     var vel = e.value;
-    var num = number[7*oct+deg-1];
+    num = number[7*oct+deg-1];
     if(midi == 2) {
       midiOutput.send(e.data[0],[num,e.data[2]]);
     }
@@ -601,10 +694,20 @@ function handleAftertouch(e) {
 }
 
 function handleNoteOff(e) {
-  var deg = ndtToDeg(e.note.number%12);
-  var oct = e.note.octave+1;
+  var deg, oct;
+  var num = e.note.number;
+  if(launchpad.isOn) {
+    let row = Math.floor(num/10)-1;
+    let col = num%10-1;
+    deg = (col+4*row)%7+1;
+    oct = oct0+Math.floor((col+4*row)/7);
+  }
+  else {
+    deg = ndtToDeg(num%12);
+    oct = e.note.octave+1;
+  }
   if(deg) {
-    var num = number[7*oct+deg-1];
+    num = number[7*oct+deg-1];
     if(midi == 2) {
       midiOutput.send(e.data[0],[num,e.data[2]]);
     }
@@ -636,7 +739,7 @@ function handleNoteOff(e) {
     /*if(fonDeg && fonNum == num) {
       var minDeg = 0;
       var minNum = 130;
-      for(let i = 0; i < 7; i++) {
+      for(var i = 0; i < 7; i++) {
         for(let j = 0; j < notesOn[i].length; j++) {
           if(notesOn[i][j][0] < minNum) {
             minDeg = i+1;
