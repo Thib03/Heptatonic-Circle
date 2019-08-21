@@ -31,6 +31,8 @@ var midiRadius = 0.35*littleRadius;
 
 var midiInput, midiOutput;
 
+var launchpad = false;
+
 /*var noteOnStatus     = 144;
 var noteOffStatus    = 128;
 var aftertouchStatus = 160;*/
@@ -39,6 +41,9 @@ var synth;
 
 var fonDeg = 0;
 //var fonNum = 130;
+
+var dragX, dragY, dragDist;
+var dragLimit = 0.1;
 
 function degToNdt(d) {
   switch(d) {
@@ -98,6 +103,9 @@ class Note {
 
     this.button.onPress = function() {
       notePressed = deg-1;
+      dragDist = 0;
+      dragX = mouseX;
+      dragY = mouseY;
     }
 
     this.button.onRelease = function() {
@@ -120,22 +128,22 @@ class Note {
             if(n != note.n) {
               note.n = n;
             }
-            else if(note.d == fonDeg) {
-              let i = note.d-1;
-              for(let d = 1; d <= 7; d++) {
-                notes[i].setColor(0);
-                i++;
-                i %= 7;
+            else if(dragDist < dragLimit*dimension)
+              if(note.d == fonDeg) {
+                fonDeg = 0;
+                for(let d = 1; d <= 7; d++) {
+                  notes[d-1].setColor(0);
+                }
               }
-            }
-            else {
-              let i = note.d-1;
-              for(let d = 1; d <= 7; d++) {
-                notes[i].setColor(d);
-                i++;
-                i %= 7;
+              else {
+                fonDeg = note.d;
+                let i = fonDeg-1;
+                for(let d = 1; d <= 7; d++) {
+                  notes[i].setColor(d);
+                  i++;
+                  i %= 7;
+                }
               }
-            }
           }
         }
         note.angle = PI/2 - note.n*PI/6;
@@ -394,10 +402,16 @@ function draw() {
   }
 
   if(notePressed > -1) {
-    notes[notePressed].move();
+    if(dragDist < dragLimit*dimension) {
+      dragDist += sqrt(pow(mouseX-dragX,2)+pow(mouseY-dragY,2));
+      notes[notePressed].draw();
+    }
+    else {
+      notes[notePressed].move();
+    }
   }
 
-  if(midi == 0) {
+  if(!midi) {
     drawMidiButton();
   }
 }
@@ -462,13 +476,10 @@ function enableMidi() {
     else {
       midiInput = WebMidi.inputs[num-1];
       window.alert('Input selected: ' + midiInput.name);
-      if(!midiInput.hasListener('noteon', 'all', handleNoteOn)) {
-        midiInput.addListener('noteon', 'all', handleNoteOn);
-        midiInput.addListener('noteoff', 'all', handleNoteOff);
-      }
-      if(!midiInput.hasListener('keyaftertouch', 'all', handleAftertouch)) {
+      if(!midiInput.hasListener('noteon',      'all', handleNoteOn)) {
+        midiInput.addListener('noteon',        'all', handleNoteOn);
         midiInput.addListener('keyaftertouch', 'all', handleAftertouch);
-        midiInput.addListener('keyaftertouch', 'all', handleAftertouch);
+        midiInput.addListener('noteoff',       'all', handleNoteOff);
       }
       midi = 1;
       //midiButton.color  = black;
