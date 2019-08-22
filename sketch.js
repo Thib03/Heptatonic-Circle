@@ -32,10 +32,6 @@ var midiRadius = 0.35*littleRadius;
 var midiInput, midiOutput;
 
 var launchpad;
-var lightGrid = [];
-for(let n = 0; n < 8; n++) {
-  lightGrid.push([]);
-}
 
 var noteOnStatus     = 144;
 var noteOffStatus    = 128;
@@ -82,7 +78,7 @@ function degToColor(d,light=false) {
       case 3:  return 25;
       case 5:  return 60;
       case 7:  return 13;
-      default: return 70;
+      default: return 0;//70;
     }
   }
   switch(d) {
@@ -182,12 +178,8 @@ class Note {
     return a;
   }
 
-  midiNumber(octave,arg = -5) {
+  midiNumber(octave) {
     var oct = octave;
-    if(arg != -5) {
-      var num = oct;
-      oct = arg;
-    }
     if     (this.d < 4 && this.n > 8) {
       oct--;
     }
@@ -332,6 +324,14 @@ class Launchpad {
   constructor() {
     this.isOn = false;
     this.output = null;
+    this.lightGrid = [];
+    for(let r = 0; r < 8; r++) {
+      var row = [];
+      for(let c = 0; c < 8; c++) {
+        row.push(false);
+      }
+      this.lightGrid.push(row);
+    }
   }
 
   turnOn(output) {
@@ -343,21 +343,72 @@ class Launchpad {
   update() {
     if(fonDeg) {
       var d = (8-fonDeg)%7+1;
-      for(var r = 1; r <= 8; r++) {
-        for(var c = 1; c <= 8; c++) {
-          this.output.send(noteOnStatus,[r*10+c,degToColor(d,true)]);
+      for(var r = 0; r < 8; r++) {
+        for(var c = 0; c < 8; c++) {
+          var color;
+          if(this.lightGrid[r][c]) {
+            color = 3;
+          }
+          else {
+            color = degToColor(d,true);
+          }
+          this.output.send(noteOnStatus,[(r+1)*10+c+1,color]);
           d = d%7+1;
         }
         d = (d+2)%7+1;
       }
     }
     else {
-      for(var r = 1; r <= 8; r++) {
-        for(var c = 1; c <= 8; c++) {
-          this.output.send(noteOnStatus,[r*10+c,0]);
+      for(var r = 0; r < 8; r++) {
+        for(var c = 0; c < 8; c++) {
+          var color;
+          if(this.lightGrid[r][c]) {
+            color = 3;
+          }
+          else {
+            color = 0;
+          }
+          this.output.send(noteOnStatus,[(r+1)*10+c+1,color]);
         }
       }
     }
+  }
+
+  noteOn(row,col) {
+    var color = 3;
+    this.lightGrid[row][col] = true;
+    this.output.send(noteOnStatus,[(row+1)*10+col+1,color]);
+    if(col < 4) {
+      if(row > 0) {
+        this.lightGrid[row-1][col+4] = true;
+        this.output.send(noteOnStatus,[row*10+col+5,color]);
+      }
+    }
+    else {
+      if(row < 7) {
+        this.lightGrid[row+1][col-4] = true;
+        this.output.send(noteOnStatus,[(row+2)*10+col-3,color]);
+      }
+    }
+  }
+
+  noteOff(row,col) {
+    //var color = degToColor(deg,true);
+    this.lightGrid[row][col] = false;
+    //this.output.send(noteOnStatus,[(row+1)*10+col+1,color]);
+    if(col < 4) {
+      if(row > 0) {
+        this.lightGrid[row-1][col+4] = false;
+        //this.output.send(noteOnStatus,[row*10+col+5,color]);
+      }
+    }
+    else {
+      if(row < 7) {
+        this.lightGrid[row+1][col-4] = false;
+        //this.output.send(noteOnStatus,[(row+2)*10+col-3,color]);
+      }
+    }
+    this.update();
   }
 }
 
@@ -426,6 +477,8 @@ function setup() {
 
 function draw() {
   background(white);
+
+  //console.log(launchpad.lightGrid);
 
   noFill();
   stroke(black);
@@ -561,13 +614,14 @@ function enableMidi() {
       return;
     }
 
+    num = 1;
     for(let i = 0; i < taille; i++) {
-      num = i+1;
       var name = WebMidi.outputs[i].name;
       if(name != 'Launchpad Pro' &&
          name != 'MIDIOUT2 (Launchpad Pro)' &&
-         name != 'MIDIOUT3 (Launchpad Pro)'){
+         name != 'MIDIOUT3 (Launchpad Pro)') {
         liste += '   ' + num.toString() + '   -   ' + name + '\n';
+        num++;
       }
     }
 
@@ -607,6 +661,7 @@ function handleNoteOn(e) {
   if(launchpad.isOn) {
     let row = Math.floor(num/10)-1;
     let col = num%10-1;
+    launchpad.noteOn(row,col);
     deg = (col+4*row)%7+1;
     oct = oct0+Math.floor((col+4*row)/7);
   }
@@ -699,6 +754,7 @@ function handleNoteOff(e) {
   if(launchpad.isOn) {
     let row = Math.floor(num/10)-1;
     let col = num%10-1;
+    launchpad.noteOff(row,col);
     deg = (col+4*row)%7+1;
     oct = oct0+Math.floor((col+4*row)/7);
   }
