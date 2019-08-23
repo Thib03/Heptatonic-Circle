@@ -41,6 +41,7 @@ var synth;
 
 var fonDeg = 0;
 //var fonNum = 130;
+var nextNote = false;
 
 var dragX, dragY, dragDist;
 var dragLimit = 0.1;
@@ -597,6 +598,7 @@ function enableMidi() {
         midiInput.addListener('noteon',        'all', handleNoteOn);
         midiInput.addListener('keyaftertouch', 'all', handleAftertouch);
         midiInput.addListener('noteoff',       'all', handleNoteOff);
+        midiInput.addListener('controlchange', 'all', handleControl);
       }
       midi = 1;
       //midiButton.color  = black;
@@ -670,6 +672,17 @@ function handleNoteOn(e) {
     oct = e.note.octave+1;
   }
   if(deg) {
+    if(nextNote) {
+      //nextNote = false;
+      fonDeg = deg;
+      let i = fonDeg-1;
+      for(let d = 1; d <= 7; d++) {
+        notes[i].setColor(d);
+        i++;
+        i %= 7;
+      }
+      launchpad.update();
+    }
     var vel = e.velocity;
     num = notes[deg-1].midiNumber(oct);
     number[7*oct+deg-1] = num;
@@ -811,6 +824,23 @@ function handleNoteOff(e) {
         }
       }
     }*/
+  }
+}
+
+function handleControl(e) {
+  if(e.controller.number == 10) {
+    if(e.value == 127) {
+      nextNote = true;
+      if(launchpad.isOn) {
+        launchpad.output.send(noteOnStatus,[10,3]);
+      }
+    }
+    else if(nextNote) {
+      nextNote = false;
+      if(launchpad.isOn) {
+        launchpad.output.send(noteOnStatus,[10,0]);
+      }
+    }
   }
 }
 
