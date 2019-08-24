@@ -469,13 +469,9 @@ function setup() {
 
   initMidiButton();
 
-  synth = new PolySynth(6);
-  /*synth = new p5.PolySynth();
-  synth.setADSR(0.001,0.1,0.5,0.3);*/
-
-  launchpad = new Launchpad();
-
   userStartAudio().then(function() {
+     synth = new PolySynth(6);
+     launchpad = new Launchpad();
      console.log('Audio ready');
    });
 }
