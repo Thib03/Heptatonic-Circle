@@ -144,9 +144,6 @@ class Note {
                 for(let d = 1; d <= 7; d++) {
                   notes[d-1].setColor(0);
                 }
-                if(launchpad.isOn) {
-                  launchpad.update();
-                }
               }
               else {
                 fonDeg = note.d;
@@ -156,9 +153,9 @@ class Note {
                   i++;
                   i %= 7;
                 }
-                if(launchpad.isOn) {
-                  launchpad.update();
-                }
+              }
+              if(launchpad.isOn) {
+                launchpad.update();
               }
             }
           }
@@ -631,7 +628,7 @@ function enableMidi() {
     num = 0;
 
     while((num < 1 || num > taille) && i < 3) {
-      numStr = window.prompt("Write the number of the desired MIDI output device:\n\n"+liste);
+      numStr = window.prompt("Write the number of the desired MIDI output device:\n\n"+liste+"\nCancel this pop-up to use the integrated synth.");
       if(numStr == null)
       {
         num = 0;
@@ -642,7 +639,7 @@ function enableMidi() {
     }
 
     if(num < 0 || !num || num > taille) {
-      window.alert("No MIDI output selected. Input still works.");
+      window.alert("No MIDI output selected. A sinewave polyphonic synth will be used as output.");
       return;
     }
     else {
@@ -674,12 +671,20 @@ function handleNoteOn(e) {
   if(deg) {
     if(nextNote) {
       //nextNote = false;
-      fonDeg = deg;
-      let i = fonDeg-1;
-      for(let d = 1; d <= 7; d++) {
-        notes[i].setColor(d);
-        i++;
-        i %= 7;
+      if(fonDeg == deg) {
+        fonDeg = 0;
+        for(let d = 1; d <= 7; d++) {
+          notes[d-1].setColor(0);
+        }
+      }
+      else {
+        fonDeg = deg;
+        let i = fonDeg-1;
+        for(let d = 1; d <= 7; d++) {
+          notes[i].setColor(d);
+          i++;
+          i %= 7;
+        }
       }
       launchpad.update();
     }
