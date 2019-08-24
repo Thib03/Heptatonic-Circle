@@ -333,7 +333,7 @@ class Launchpad {
   }
 
   turnOn(output) {
-    this.output = WebMidi.getOutputByName(output);
+    this.output = WebMidi.outputs[output];
     this.isOn = true;
     this.update();
   }
@@ -466,9 +466,10 @@ function setup() {
 
   initMidiButton();
 
+  synth = new PolySynth(6);
+  launchpad = new Launchpad();
+
   userStartAudio().then(function() {
-     synth = new PolySynth(6);
-     launchpad = new Launchpad();
      console.log('Audio ready');
    });
 }
@@ -586,9 +587,25 @@ function enableMidi() {
     else {
       midiInput = WebMidi.inputs[num-1];
       let name = midiInput.name;
-      if(name == 'MIDIIN2 (Launchpad Pro)') {
+      /*if(name == 'MIDIIN2 (Launchpad Pro)') {
         launchpad.turnOn('MIDIOUT2 (Launchpad Pro)');
         name += '.\nColours will be displayed on the matrix. Please put your Launchpad Pro into Programmer Mode';
+      }*/
+      if(name.includes('Launchpad Pro')) {
+        if(num > 1 && num < taille &&
+        WebMidi.inputs[num-2].name.includes('Launchpad Pro') &&
+        WebMidi.inputs[num].name.includes('Launchpad Pro')) {
+          taille = WebMidi.outputs.length;
+          for(let o = 1; o < taille-1; o++) {
+            if(WebMidi.outputs[o-1].name.includes('Launchpad Pro') &&
+               WebMidi.outputs[o  ].name.includes('Launchpad Pro') &&
+               WebMidi.outputs[o+1].name.includes('Launchpad Pro')) {
+              launchpad.turnOn(o);
+              name += '.\nColours will be displayed on the matrix. Please put your Launchpad Pro into Programmer Mode';
+              break;
+            }
+          }
+        }
       }
       window.alert('Input selected: ' + name + '.');
       if(!midiInput.hasListener('noteon',      'all', handleNoteOn)) {
@@ -605,7 +622,7 @@ function enableMidi() {
     //--------------------OUTPUT--------------------
 
     liste = '';
-    taille = WebMidi.outputs.length;
+    //taille = WebMidi.outputs.length;
     numStr = '0';
 
     if(taille == 0) {
