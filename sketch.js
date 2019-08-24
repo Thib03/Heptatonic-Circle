@@ -602,6 +602,7 @@ function enableMidi() {
                WebMidi.outputs[o+1].name.includes('Launchpad Pro')) {
               launchpad.turnOn(o);
               name += '.\nColours will be displayed on the matrix. Please put your Launchpad Pro into Programmer Mode';
+              taille -= 3;
               break;
             }
           }
