@@ -474,6 +474,10 @@ function setup() {
   synth.setADSR(0.001,0.1,0.5,0.3);*/
 
   launchpad = new Launchpad();
+
+  userStartAudio().then(function() {
+     console.log('Audio ready');
+   });
 }
 
 function draw() {
