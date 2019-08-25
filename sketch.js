@@ -39,6 +39,13 @@ var aftertouchStatus = 160;
 
 var synth;
 
+let t1 = 0.001;
+let l1 = 1; // velocity
+let t2 = 0.1;
+let l2 = 0.5; // aftertouch
+let t3 = 0.3;
+let l3 = 0;
+
 var fonDeg = 0;
 //var fonNum = 130;
 var nextNote = false;
@@ -285,8 +292,9 @@ class PolySynth {
       if(voice[0] == -1) {
         voice[0] = pit;
         voice[1].freq(frq);
-        voice[2].setRange(vel,0);
-        voice[2].setADSR(0.001,0.1,0.5,0.3);
+        //voice[2].setRange(vel,0);
+        //voice[2].setADSR(0.001,0.1,0.5,0.3);
+        voice[2].set(t1,vel,t2,l2*vel,t3,l3);
         voice[2].triggerAttack();
         break;
       }
@@ -466,9 +474,6 @@ function setup() {
 
   initMidiButton();
 
-  synth = new PolySynth(6);
-  launchpad = new Launchpad();
-
   userStartAudio().then(function() {
      console.log('Audio ready');
    });
@@ -568,7 +573,7 @@ function enableMidi() {
     i = 0;
     num = 0;
 
-    while((num < 1 || num > taille) && i < 3) {
+    while((num < 1 || num > taille) && i < 1) {
       numStr = window.prompt("Write the number of the desired MIDI input device:\n\n"+liste);
       if(numStr == null)
       {
@@ -592,19 +597,28 @@ function enableMidi() {
         name += '.\nColours will be displayed on the matrix. Please put your Launchpad Pro into Programmer Mode';
       }*/
       if(name.includes('Launchpad Pro')) {
-        if(num > 1 && num < taille &&
-        WebMidi.inputs[num-2].name.includes('Launchpad Pro') &&
-        WebMidi.inputs[num].name.includes('Launchpad Pro')) {
-          taille = WebMidi.outputs.length;
-          for(let o = 1; o < taille-1; o++) {
-            if(WebMidi.outputs[o-1].name.includes('Launchpad Pro') &&
-               WebMidi.outputs[o  ].name.includes('Launchpad Pro') &&
-               WebMidi.outputs[o+1].name.includes('Launchpad Pro')) {
-              launchpad.turnOn(o);
-              name += '.\nColours will be displayed on the matrix. Please put your Launchpad Pro into Programmer Mode';
-              taille -= 3;
-              break;
-            }
+        let x = (WebMidi.inputs[num-2].name.includes('Launchpad Pro'));
+        let y = (WebMidi.inputs[num  ].name.includes('Launchpad Pro'));
+        var offset;
+        if(!x && y) {
+          offset = 0;
+        }
+        else if(x && y) {
+          offset = 1;
+        }
+        else {
+          offset = 2;
+        }
+        taille = WebMidi.outputs.length;
+        for(let o = 0; o < taille-2; o++) {
+          if(WebMidi.outputs[o  ].name.includes('Launchpad Pro') &&
+             WebMidi.outputs[o+1].name.includes('Launchpad Pro') &&
+             WebMidi.outputs[o+2].name.includes('Launchpad Pro')) {
+            launchpad = new Launchpad();
+            launchpad.turnOn(o+offset);
+            name += '.\nColours will be displayed on the matrix. Please put your Launchpad Pro into Programmer Mode';
+            taille -= 3;
+            break;
           }
         }
       }
@@ -645,7 +659,7 @@ function enableMidi() {
     i = 0;
     num = 0;
 
-    while((num < 1 || num > taille) && i < 3) {
+    while((num < 1 || num > taille) && i < 1) {
       numStr = window.prompt("Write the number of the desired MIDI output device:\n\n"+liste+"\nCancel this pop-up to use the integrated synth.");
       if(numStr == null)
       {
@@ -658,6 +672,7 @@ function enableMidi() {
 
     if(num < 0 || !num || num > taille) {
       window.alert("No MIDI output selected. A sinewave polyphonic synth will be used as output.");
+      synth = new PolySynth(6);
       return;
     }
     else {
