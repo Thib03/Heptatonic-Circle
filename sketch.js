@@ -468,6 +468,8 @@ function setup() {
 
   dimension = Math.min(width,height);
 
+  launchpad = new Launchpad();
+
   for(let d = 1; d <= 7; d++) {
     notes.push(new Note(d));
   }
@@ -614,7 +616,6 @@ function enableMidi() {
           if(WebMidi.outputs[o  ].name.includes('Launchpad Pro') &&
              WebMidi.outputs[o+1].name.includes('Launchpad Pro') &&
              WebMidi.outputs[o+2].name.includes('Launchpad Pro')) {
-            launchpad = new Launchpad();
             launchpad.turnOn(o+offset);
             name += '.\nColours will be displayed on the matrix. Please put your Launchpad Pro into Programmer Mode';
             taille -= 3;
