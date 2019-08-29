@@ -341,7 +341,12 @@ class Launchpad {
   }
 
   turnOn(output) {
-    this.output = WebMidi.outputs[output];
+    if(output == 'Launchpad Note') {
+      this.output = WebMidi.getOutputByName('Launchpad Light');
+    }
+    else {
+      this.output = WebMidi.outputs[output];
+    }
     this.isOn = true;
     this.update();
   }
@@ -622,6 +627,11 @@ function enableMidi() {
             break;
           }
         }
+      }
+      else if(name == 'Launchpad Note') {
+        launchpad.turnOn('Launchpad Note');
+        console.log('yes');
+        name += '.\nColours will be displayed on the matrix. Please put your Launchpad Pro into Programmer Mode';
       }
       window.alert('Input selected: ' + name + '.');
       if(!midiInput.hasListener('noteon',      'all', handleNoteOn)) {
