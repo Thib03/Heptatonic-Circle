@@ -342,7 +342,11 @@ class Launchpad {
 
   turnOn(output) {
     if(output == 'Launchpad Note') {
-      this.output = WebMidi.getOutputByName('Launchpad Light');
+      for(let o = 0; o < WebMidi.outputs.length; o++) {
+        if(WebMidi.outputs[o].name.includes('Launchpad Light')) {
+          this.output = WebMidi.outputs[o];
+        }
+      }
     }
     else {
       this.output = WebMidi.outputs[output];
@@ -628,7 +632,7 @@ function enableMidi() {
           }
         }
       }
-      else if(name == 'Launchpad Note') {
+      else if(name.includes('Launchpad Note')) {
         launchpad.turnOn('Launchpad Note');
         console.log('yes');
         name += '.\nColours will be displayed on the matrix. Please put your Launchpad Pro into Programmer Mode';
@@ -826,12 +830,14 @@ function handleNoteOff(e) {
   }
   if(deg) {
     num = number[7*oct+deg-1];
-    if(midi == 2) {
+
+    /*if(midi == 2) {
       midiOutput.send(e.data[0],[num,e.data[2]]);
     }
     else {
       synth.noteRelease(num);
-    }
+    }*/
+
     var l = notesOn[deg-1].length;
     for(let i = 0; i < l; i++) {
       if(notesOn[deg-1][i][0] == num) {
@@ -853,6 +859,12 @@ function handleNoteOff(e) {
     }
     else {
       velocity[deg-1] = 0;
+      if(midi == 2) {
+        midiOutput.send(e.data[0],[num,e.data[2]]);
+      }
+      else {
+        synth.noteRelease(num);
+      }
     }
     /*if(fonDeg && fonNum == num) {
       var minDeg = 0;
