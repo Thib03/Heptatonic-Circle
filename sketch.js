@@ -31,6 +31,9 @@ var midiRadius = 0.35*littleRadius;
 
 var midiInput, midiOutput;
 
+var hasSequencer = false;
+var sequencerOutput;
+
 var launchpad;
 
 var noteOnStatus     = 144;
@@ -286,20 +289,31 @@ class PolySynth {
 
   noteAttack(pit,vel) {
     var frq = 16.3515*exp(pit*log(2)/12);
-    var v;
-    for(v = 0; v < this.voices.length; v++) {
+    var voi = -1;
+    for(let v = 0; v < this.voices.length; v++) {
       var voice = this.voices[v];
-      if(voice[0] == -1) {
-        voice[0] = pit;
-        voice[1].freq(frq);
-        //voice[2].setRange(vel,0);
-        //voice[2].setADSR(0.001,0.1,0.5,0.3);
-        voice[2].set(t1,vel,t2,l2*vel,t3,l3);
-        voice[2].triggerAttack();
+      if(voice[0] == pit) {
+        voi = v;
         break;
       }
     }
-    if(v == this.voices.length) {
+    if(voi == -1) {
+      for(let v = 0; v < this.voices.length; v++) {
+        var voice = this.voices[v];
+        if(voice[0] == -1) {
+          voi = v;
+          break;
+        }
+      }
+    }
+    if(voi >= 0) {
+      var voice = this.voices[voi]
+      voice[0] = pit;
+      voice[1].freq(frq);
+      voice[2].set(t1,vel,t2,l2*vel,t3,l3);
+      voice[2].triggerAttack();
+    }
+    else {
       console.log('Maximum number of voices reached.');
     }
   }
@@ -663,11 +677,16 @@ function enableMidi() {
     num = 1;
     for(let i = 0; i < taille; i++) {
       var name = WebMidi.outputs[i].name;
-      if(name != 'Launchpad Pro' &&
+      /*if(name != 'Launchpad Pro' &&
          name != 'MIDIOUT2 (Launchpad Pro)' &&
-         name != 'MIDIOUT3 (Launchpad Pro)') {
+         name != 'MIDIOUT3 (Launchpad Pro)' &&
+         name != 'Sequencer') {*/
         liste += '   ' + num.toString() + '   -   ' + name + '\n';
         num++;
+      //}
+      if(name.includes('Sequencer')) {
+        hasSequencer = true;
+        sequencerOutput = WebMidi.outputs[i];
       }
     }
 
@@ -741,6 +760,9 @@ function handleNoteOn(e) {
     number[7*oct+deg-1] = num;
     if(midi == 2) {
       midiOutput.send(e.data[0],[num,e.data[2]]);
+      if(hasSequencer) {
+        sequencerOutput.send(e.data[0],[7*oct+deg-1,fonDeg?(deg-fonDeg+7)%7+1:8]);
+      }
     }
     else {
       synth.noteAttack(num,vel);
@@ -816,11 +838,11 @@ function handleAftertouch(e) {
 
 function handleNoteOff(e) {
   var deg, oct;
+  var row, col;
   var num = e.note.number;
   if(launchpad.isOn) {
-    let row = Math.floor(num/10)-1;
-    let col = num%10-1;
-    launchpad.noteOff(row,col);
+    row = Math.floor(num/10)-1;
+    col = num%10-1;
     deg = (col+4*row)%7+1;
     oct = oct0+Math.floor((col+4*row)/7);
   }
@@ -859,32 +881,29 @@ function handleNoteOff(e) {
     }
     else {
       velocity[deg-1] = 0;
-      if(midi == 2) {
-        midiOutput.send(e.data[0],[num,e.data[2]]);
-      }
-      else {
-        synth.noteRelease(num);
+    }
+
+    var lm = 0;
+    for(let i = 0; i < l; i++) {
+      if(notesOn[deg-1][i][0] == num) {
+        lm++;
       }
     }
-    /*if(fonDeg && fonNum == num) {
-      var minDeg = 0;
-      var minNum = 130;
-      for(var i = 0; i < 7; i++) {
-        for(let j = 0; j < notesOn[i].length; j++) {
-          if(notesOn[i][j][0] < minNum) {
-            minDeg = i+1;
-            minNum = notesOn[i][j][0];
-          }
+    if(!lm) {
+      if(midi == 2) {
+        midiOutput.send(e.data[0],[num,e.data[2]]);
+        if(hasSequencer) {
+          sequencerOutput.send(e.data[0],[7*oct+deg-1,e.data[2]]);
         }
       }
-      fonDeg = minDeg;
-      fonNum = minNum;
-      if(!minDeg) {
-        for(let i = 0; i < 7; i++) {
-          notes[i].setColor(0);
-        }
+      else {
+        console.log('off');
+        synth.noteRelease(num);
       }
-    }*/
+      if(launchpad.isOn) {
+        launchpad.noteOff(row,col);
+      }
+    }
   }
 }
 
