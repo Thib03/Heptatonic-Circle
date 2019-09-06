@@ -25,7 +25,7 @@ var notes = [];
 var millisecond = 0;
 var notePressed = -1;
 
-var midiButton;
+var midiHandler;
 var midi = 0;
 var midiRadius = 0.35*littleRadius;
 
@@ -441,45 +441,42 @@ class Launchpad {
   }
 }
 
-function initMidiButton() {
-  midiButton = new Clickable();
-  midiButton.color = white;
-  midiButton.cornerRadius = 1000;
-  midiButton.stroke = black;
-  midiButton.text = '';
-  midiButton.onPress = function() {
-    //if(this.color == white) {
+class MidiHandler {
+  constructor() {
+    this.button = new Clickable();
+    this.button.color = white;
+    this.button.cornerRadius = 1000;
+    this.button.stroke = black;
+    this.button.text = '';
+    this.button.onPress = function() {
       enableMidi();
-    /*}
-    else {
-      disableMidi();
-    }*/
+    }
+    this.update();
   }
-  updateMidiButton();
-}
 
-function updateMidiButton() {
-  let r = midiRadius*dimension;
-  midiButton.resize(2*r,2*r);
-  midiButton.locate(width/2 -r,
-                     height/2-r);
-  midiButton.strokeWeight = weight*dimension;
-}
-
-function drawMidiButton() {
-  midiButton.draw();
-
-  noStroke();
-  fill(midiButton.color==white?black:white);
-  let r  = 0.14*midiRadius*dimension;
-  let br = 0.6*midiRadius*dimension;
-  for(let n = 0; n < 5; n++) {
-    let a = n*PI/4;
-    circle(width/2+br*cos(a),height/2-br*sin(a),2*r,2*r);
+  update() {
+    let r = midiRadius*dimension;
+    this.button.resize(2*r,2*r);
+    this.button.locate(width/2 -r,
+                       height/2-r);
+    this.button.strokeWeight = weight*dimension;
   }
-  let l = 0.7*midiRadius*dimension;
-  let h = 0.35*midiRadius*dimension;
-  rect(width/2-l/2,height/2+1.1*br,l,h,h);
+
+  draw() {
+    this.button.draw();
+
+    noStroke();
+    fill(this.button.color==white?black:white);
+    let r  = 0.14*midiRadius*dimension;
+    let br = 0.6*midiRadius*dimension;
+    for(let n = 0; n < 5; n++) {
+      let a = n*PI/4;
+      circle(width/2+br*cos(a),height/2-br*sin(a),2*r,2*r);
+    }
+    let l = 0.7*midiRadius*dimension;
+    let h = 0.35*midiRadius*dimension;
+    rect(width/2-l/2,height/2+1.1*br,l,h,h);
+  }
 }
 
 function preload() {
@@ -497,7 +494,7 @@ function setup() {
     notes.push(new Note(d));
   }
 
-  initMidiButton();
+  midiHandler = new MidiHandler();
 
   userStartAudio().then(function() {
      console.log('Audio ready');
@@ -553,7 +550,7 @@ function draw() {
   }
 
   if(!midi) {
-    drawMidiButton();
+    midiHandler.draw();
   }
 }
 
@@ -566,7 +563,7 @@ function windowResized() {
     notes[n].update();
   }
 
-  updateMidiButton();
+  midiHandler.update();
 }
 
 //------------------------------------------------------------------------------
