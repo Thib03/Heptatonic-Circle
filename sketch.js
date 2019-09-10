@@ -56,6 +56,8 @@ var nextNote = false;
 var dragX, dragY, dragDist;
 var dragLimit = 0.1;
 
+var midiScale = [[]];
+
 function degToNdt(d) {
   switch(d) {
     default:
@@ -589,7 +591,13 @@ function enableMidi() {
 
     for(let i = 0; i < taille; i++) {
       num = i+1;
-      liste += '   ' + num.toString() + '   -   ' + WebMidi.inputs[i].name + '\n';
+      var name = WebMidi.inputs[i].name;
+      liste += '   ' + num.toString() + '   -   ' + name + '\n';
+      if(name.includes('Progression')) {
+        if(!WebMidi.inputs[i].hasListener('noteon',      'all', handleScale)) {
+          WebMidi.inputs[i].addListener('noteon',        'all', handleScale);
+        }
+      }
     }
 
     i = 0;
@@ -917,6 +925,36 @@ function handleControl(e) {
       if(launchpad.isOn) {
         launchpad.output.send(noteOnStatus,[10,0]);
       }
+    }
+  }
+}
+
+function handleScale(e) {
+  if(millis()-millisecond > 20) {
+    millisecond = millis();
+    midiScale = [[e.note.number,e.rawVelocity]];
+  }
+  else {
+    midiScale.push([e.note.number,e.rawVelocity]);
+  }
+  if(midiScale.length == 7) {
+    midiScale.sort(function (a, b) {
+      return a[0] - b[0];
+    });
+    fonDeg = midiScale[0][1];
+    let i = fonDeg-1;
+    for(let d = 1; d <= 7; d++) {
+      var note = notes[i];
+      note.setColor(d);
+      note.n = midiScale[d-1][0]%12;
+      note.angle = PI/2 - note.n*PI/6;
+      note.updateText();
+      note.update();
+      i++;
+      i %= 7;
+    }
+    if(launchpad.isOn) {
+      launchpad.update();
     }
   }
 }
