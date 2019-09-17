@@ -284,13 +284,13 @@ class PolySynth {
     for(let v = 0; v < num; v++) {
       var env = new p5.Envelope();
       var osc = new p5.Oscillator();
-      var fil = new p5.LowPass();
+      //var fil = new p5.LowPass();
       osc.setType('sine');
       osc.amp(env);
-      osc.disconnect();
+      /*osc.disconnect();
       osc.connect(fil);
       fil.amp(1);
-      fil.freq(maxFreq);
+      fil.freq(maxFreq);*/
       osc.start();
       this.voices.push([-1,osc,env]);//,fil]);
     }
