@@ -42,6 +42,8 @@ var aftertouchStatus = 160;
 
 var synth;
 
+var font, fontLight;
+
 let t1 = 0.001;
 let l1 = 1; // velocity
 let t2 = 0.1;
@@ -60,8 +62,24 @@ var midiScale = [[]];
 
 var maxFreq = 10000;
 
+function deg(d) {
+  while(d < 1) {d += 7;}
+  return (d-1)%7+1;
+}
+
+function ndt(n) {
+  while(n < 0) {n += 12;}
+  return n%12;
+}
+
+function alt(a) {
+  while(a < -6) {a += 12;}
+  while(a >  6) {a -= 12;}
+  return a;
+}
+
 function degToNdt(d) {
-  switch(d) {
+  switch(deg(d)) {
     default:
     case 1: return 0;
     case 2: return 2;
@@ -74,7 +92,7 @@ function degToNdt(d) {
 }
 
 function ndtToDeg(n) {
-  switch(n){
+  switch(ndt(n)){
     case 0: return 1;
     case 2: return 2;
     case 4: return 3;
@@ -88,7 +106,7 @@ function ndtToDeg(n) {
 
 function degToColor(d,light=false) {
   if(light) {
-    switch(d) {
+    switch(deg(d)) {
       case 1:  return 41;
       case 3:  return 25;
       case 5:  return 60;
@@ -96,12 +114,32 @@ function degToColor(d,light=false) {
       default: return 0;//70;
     }
   }
-  switch(d) {
+  switch(deg(d)) {
     case 1:  return [109,158,235];
     case 3:  return [146,196,125];
     case 5:  return [224,102,101];
     case 7:  return [254,217,102];
     default: return [217,217,217];
+  }
+}
+
+function triggerColors(deg) {
+  if(fonDeg == deg) {
+    fonDeg = 0;
+    for(let d = 1; d <= 7; d++) {
+      notes[d-1].setColor(0);
+      notes[d-1].updateText();
+    }
+  }
+  else {
+    fonDeg = deg;
+    let i = fonDeg-1;
+    for(let d = 1; d <= 7; d++) {
+      notes[i].setColor(d);
+      notes[i].updateText();
+      i++;
+      i %= 7;
+    }
   }
 }
 
@@ -151,23 +189,14 @@ class Note {
           if(da >= 2*PI - PI/12 || da < PI/12) {
             if(n != note.n) {
               note.n = n;
+              if(note.d == fonDeg) {
+                for(let d = 2; d <= 7; d++) {
+                  notes[(fonDeg+d+5)%7].updateText();
+                }
+              }
             }
             else if(dragDist < dragLimit*dimension) {
-              if(note.d == fonDeg) {
-                fonDeg = 0;
-                for(let d = 1; d <= 7; d++) {
-                  notes[d-1].setColor(0);
-                }
-              }
-              else {
-                fonDeg = note.d;
-                let i = fonDeg-1;
-                for(let d = 1; d <= 7; d++) {
-                  notes[i].setColor(d);
-                  i++;
-                  i %= 7;
-                }
-              }
+              triggerColors(note.d);
               if(launchpad.isOn) {
                 launchpad.update();
               }
@@ -184,10 +213,7 @@ class Note {
   }
 
   alt() {
-    let a = this.n-degToNdt(this.d);
-    while(a < -6) {a += 12;}
-    while(a >  6) {a -= 12;}
-    return a;
+    return alt(this.n-degToNdt(this.d));
   }
 
   midiNumber(octave) {
@@ -213,23 +239,41 @@ class Note {
 
   updateText() {
     var text = '';
-    switch(this.d) {
-      default:
-      case 1: text += 'C'; break;
-      case 2: text += 'D'; break;
-      case 3: text += 'E'; break;
-      case 4: text += 'F'; break;
-      case 5: text += 'G'; break;
-      case 6: text += 'A'; break;
-      case 7: text += 'B'; break;
+    if(!fonDeg) {
+      switch(this.d) {
+        default:
+        case 1: text += 'C'; break;
+        case 2: text += 'D'; break;
+        case 3: text += 'E'; break;
+        case 4: text += 'F'; break;
+        case 5: text += 'G'; break;
+        case 6: text += 'A'; break;
+        case 7: text += 'B'; break;
+      }
+      var a = this.alt();
+      switch(a) {
+        case -3: text += 'bbb';break;
+        case -2: text += 'bb'; break;
+        case -1: text += 'b';  break;
+        case  0:               break;
+        case  1: text += '#';  break;
+        case  2: text += '##'; break;
+        case  3: text += '###';break;
+        default: text += Math.abs(a) + (a>0?'#':'b'); break;
+      }
     }
-    switch(this.alt()) {
-      case -2: text += 'bb'; break;
-      case -1: text += 'b';  break;
-      case  0:               break;
-      case  1: text += '#';  break;
-      case  2: text += '##'; break;
-      default: text += '?';
+    else {
+      var a = alt(ndt(this.n-notes[fonDeg-1].n)-degToNdt(this.d-notes[fonDeg-1].d+1));
+      switch(a) {
+        case -3: text += '---';break;
+        case -2: text += '--'; break;
+        case -1: text += '-';  break;
+        case  0:               break;
+        case  1: text += '+';  break;
+        case  2: text += '++'; break;
+        case  3: text += '+++';break;
+        default: text += Math.abs(a) + (a>0?'+':'-');  break;
+      }
     }
     this.text = text;
   }
@@ -266,10 +310,18 @@ class Note {
   drawText() {
     fill(this.textColor);
     textAlign(CENTER,CENTER);
-    textSize(0.08*dimension);
+    var adjustY;
+    if(fonDeg) {
+      textSize(0.1*dimension);
+      adjustY = -0.02*dimension;
+    }
+    else {
+      textSize(0.08*dimension);
+      adjustY = -0.01*dimension;
+    }
     textFont(font);
     text(this.text,this.button.x+this.button.width/2,
-                   this.button.y+this.button.height/2-0.01*dimension);
+                   this.button.y+this.button.height/2+adjustY);
   }
 
   draw() {
@@ -333,7 +385,7 @@ class PolySynth {
       var voice = this.voices[v];
       if(voice[0] == pit) {
         //voice[3].freq(vel*maxFreq+100);
-        voice[1].amp(vel);
+        //voice[1].amp(vel);
         break;
       }
     }
@@ -377,6 +429,7 @@ class Launchpad {
     else {
       this.output = WebMidi.outputs[output];
     }
+    this.output.send(noteOnStatus,[10,degToColor(1,true)]);
     this.isOn = true;
     this.update();
   }
@@ -385,6 +438,9 @@ class Launchpad {
     if(fonDeg) {
       var d = (8-fonDeg)%7+1;
       for(var r = 0; r < 8; r++) {
+        if(r && r < 7) {
+          this.output.send(noteOnStatus,[(r+1)*10,degToColor(r+1,true)]);
+        }
         for(var c = 0; c < 8; c++) {
           var color;
           if(this.lightGrid[r][c]) {
@@ -401,6 +457,9 @@ class Launchpad {
     }
     else {
       for(var r = 0; r < 8; r++) {
+        if(r && r < 7) {
+          this.output.send(noteOnStatus,[(r+1)*10,0]);
+        }
         for(var c = 0; c < 8; c++) {
           var color;
           if(this.lightGrid[r][c]) {
@@ -492,7 +551,8 @@ class MidiHandler {
 }
 
 function preload() {
-  font = loadFont('nunito.ttf');
+  font      = loadFont('nunito_light.ttf');
+  fontLight = loadFont('nunito_extra_light.ttf');
 }
 
 function setup() {
@@ -530,15 +590,6 @@ function draw() {
     line(width/2+(r+dr)*cos(a),height/2-(r+dr)*sin(a),
          width/2+(r-dr)*cos(a),height/2-(r-dr)*sin(a));
   }
-
-  /*if(fonDeg) {
-    var n = fonDeg-1;
-    for(let d = 1; d <= 7; d++) {
-      notes[n].setColor(d);
-      n++;
-      n %= 7;
-    }
-  }*/
 
   for(let n = 0; n < notes.length; n++) {
     var note = notes[n];
@@ -663,7 +714,6 @@ function enableMidi() {
       }
       else if(name.includes('Launchpad Note')) {
         launchpad.turnOn('Launchpad Note');
-        console.log('yes');
         name += '.\nColours will be displayed on the matrix. Please put your Launchpad Pro into Programmer Mode';
       }
       window.alert('Input selected: ' + name + '.');
@@ -747,22 +797,7 @@ function handleNoteOn(e) {
   }
   if(deg) {
     if(nextNote) {
-      //nextNote = false;
-      if(fonDeg == deg) {
-        fonDeg = 0;
-        for(let d = 1; d <= 7; d++) {
-          notes[d-1].setColor(0);
-        }
-      }
-      else {
-        fonDeg = deg;
-        let i = fonDeg-1;
-        for(let d = 1; d <= 7; d++) {
-          notes[i].setColor(d);
-          i++;
-          i %= 7;
-        }
-      }
+      triggerColors(deg);
       launchpad.update();
     }
     var vel = e.velocity;
@@ -904,7 +939,6 @@ function handleNoteOff(e) {
         midiOutput.send(e.data[0],[num,e.data[2]]);
       }
       else {
-        console.log('off');
         synth.noteRelease(num);
       }
       if(hasSequencer) {
@@ -918,17 +952,48 @@ function handleNoteOff(e) {
 }
 
 function handleControl(e) {
-  if(e.controller.number == 10) {
-    if(e.value == 127) {
-      nextNote = true;
-      if(launchpad.isOn) {
+  if(launchpad.isOn) {
+    if(e.controller.number == 10) {
+      if(e.value == 127) {
+        nextNote = true;
         launchpad.output.send(noteOnStatus,[10,3]);
       }
+      else if(nextNote) {
+        nextNote = false;
+        launchpad.output.send(noteOnStatus,[10,degToColor(1,true)]);
+      }
     }
-    else if(nextNote) {
-      nextNote = false;
-      if(launchpad.isOn) {
-        launchpad.output.send(noteOnStatus,[10,0]);
+    else if(fonDeg) {
+      for(var d = 2; d <= 7; d++) {
+        if(e.controller.number == d*10) {
+          if(e.value == 127) {
+            launchpad.output.send(noteOnStatus,[d*10,3]);
+            var n = (fonDeg+d-2)%7;
+            var nAv = ndt(notes[n].n-notes[(n+6)%7].n)-1;
+            var nAp = ndt(notes[(n+1)%7].n-notes[n].n)-1;
+            if(nAv && !nAp) {
+              notes[n].n = ndt(notes[n].n-1);
+            }
+            else if(!nAv && nAp) {
+              notes[n].n = ndt(notes[n].n+1);
+            }
+            else if(nAv && nAp) {
+              var a = alt(ndt(notes[n].n-notes[fonDeg-1].n)-degToNdt(notes[n].d-notes[fonDeg-1].d+1));
+              if(a > 0 || (!a && d != 4)) {
+                notes[n].n = ndt(notes[n].n-1);
+              }
+              else { // a < 0
+                notes[n].n = ndt(notes[n].n+1);
+              }
+            }
+            notes[n].angle = PI/2 - notes[n].n*PI/6;
+            notes[n].updateText();
+            notes[n].update();
+          }
+          else {
+            launchpad.output.send(noteOnStatus,[d*10,degToColor(d,true)]);
+          }
+        }
       }
     }
   }
