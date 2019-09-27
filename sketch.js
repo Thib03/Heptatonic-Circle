@@ -123,12 +123,15 @@ function degToColor(d,light=false) {
   }
 }
 
-function triggerColors(deg) {
+function triggerColors(deg,overwrite = false) {
   var updateColumn = false;
-  if(launchpad.isOn && (fonDeg == deg || !fonDeg)) {
+  if(launchpad.isOn && ((fonDeg == deg && !overwrite) || !fonDeg)) {
     updateColumn = true;
   }
   if(fonDeg == deg) {
+    if(overwrite) {
+      return;
+    }
     fonDeg = 0;
     for(let d = 1; d <= 7; d++) {
       notes[d-1].setColor(0);
@@ -1023,7 +1026,7 @@ function handleScale(e) {
     midiScale.sort(function (a, b) {
       return a[0] - b[0];
     });
-    triggerColors(midiScale[0][1]);
+    triggerColors(midiScale[0][1],true);
     let i = fonDeg-1;
     for(let d = 1; d <= 7; d++) {
       var note = notes[i];
