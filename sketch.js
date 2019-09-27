@@ -124,6 +124,10 @@ function degToColor(d,light=false) {
 }
 
 function triggerColors(deg) {
+  var updateColumn = false;
+  if(launchpad.isOn && (fonDeg == deg || !fonDeg)) {
+    updateColumn = true;
+  }
   if(fonDeg == deg) {
     fonDeg = 0;
     for(let d = 1; d <= 7; d++) {
@@ -139,6 +143,12 @@ function triggerColors(deg) {
       notes[i].updateText();
       i++;
       i %= 7;
+    }
+  }
+  if(launchpad.isOn) {
+    launchpad.update();
+    if(updateColumn) {
+      launchpad.sendControlColumn();
     }
   }
 }
@@ -197,9 +207,6 @@ class Note {
             }
             else if(dragDist < dragLimit*dimension) {
               triggerColors(note.d);
-              if(launchpad.isOn) {
-                launchpad.update();
-              }
             }
           }
         }
@@ -434,13 +441,16 @@ class Launchpad {
     this.update();
   }
 
+  sendControlColumn() {
+    for(let d = 2; d <= 7; d++) {
+      this.output.send(noteOnStatus,[d*10,fonDeg?degToColor(d,true):0]);
+    }
+  }
+
   update() {
     if(fonDeg) {
       var d = (8-fonDeg)%7+1;
       for(var r = 0; r < 8; r++) {
-        if(r && r < 7) {
-          this.output.send(noteOnStatus,[(r+1)*10,degToColor(r+1,true)]);
-        }
         for(var c = 0; c < 8; c++) {
           var color;
           if(this.lightGrid[r][c]) {
@@ -798,7 +808,6 @@ function handleNoteOn(e) {
   if(deg) {
     if(nextNote) {
       triggerColors(deg);
-      launchpad.update();
     }
     var vel = e.velocity;
     num = notes[deg-1].midiNumber(oct);
@@ -1014,20 +1023,15 @@ function handleScale(e) {
     midiScale.sort(function (a, b) {
       return a[0] - b[0];
     });
-    fonDeg = midiScale[0][1];
+    triggerColors(midiScale[0][1]);
     let i = fonDeg-1;
     for(let d = 1; d <= 7; d++) {
       var note = notes[i];
-      note.setColor(d);
       note.n = midiScale[d-1][0]%12;
       note.angle = PI/2 - note.n*PI/6;
-      note.updateText();
       note.update();
       i++;
       i %= 7;
-    }
-    if(launchpad.isOn) {
-      launchpad.update();
     }
   }
 }
