@@ -1032,6 +1032,7 @@ function handleScale(e) {
       var note = notes[i];
       note.n = midiScale[d-1][0]%12;
       note.angle = PI/2 - note.n*PI/6;
+      note.updateText();
       note.update();
       i++;
       i %= 7;
