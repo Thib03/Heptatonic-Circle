@@ -44,6 +44,12 @@ var synth;
 
 var font, fontLight;
 
+var tritons = [];
+
+for(let i = 0; i < 6; i++) {
+  tritons[i] = false;
+}
+
 let t1 = 0.001;
 let l1 = 1; // velocity
 let t2 = 0.1;
@@ -600,8 +606,14 @@ function draw() {
     let a = PI/2 - n*PI/6;
     let r = bigRadius*dimension;
     let dr = 0.65*littleRadius*dimension;
-    line(width/2+(r+dr)*cos(a),height/2-(r+dr)*sin(a),
-         width/2+(r-dr)*cos(a),height/2-(r-dr)*sin(a));
+    if(n < 6 && tritons[n]) {
+      line(width/2+(r+dr)*cos(a),height/2-(r+dr)*sin(a),
+           width/2+(r+dr)*cos(a+PI),height/2-(r+dr)*sin(a+PI));
+    }
+    else if(!tritons[n%6]) {
+      line(width/2+(r+dr)*cos(a),height/2-(r+dr)*sin(a),
+           width/2+(r-dr)*cos(a),height/2-(r-dr)*sin(a));
+    }
   }
 
   for(let n = 0; n < notes.length; n++) {
@@ -840,10 +852,15 @@ function handleNoteOn(e) {
     else {
       velocity[deg-1] = vel;
     }
-    /*if(!fonDeg || num < fonNum) {
-      fonDeg = deg;
-      fonNum = num;
-    }*/
+    var n0 = notes[deg-1].n;
+    for(var d = 1; d <= 7; d++) {
+      if(d != deg && notesOn[d-1].length) {
+        var n1 = ndt(notesOn[d-1][0][0]);
+        if(ndt(n1-n0) == 6) {
+          tritons[Math.min(n0,n1)] = true;
+        }
+      }
+    }
   }
 }
 
@@ -925,20 +942,6 @@ function handleNoteOff(e) {
         break;
       }
     }
-    if(l >= 1) {
-      var max = 0;
-      var v;
-      for(let i = 0; i < l; i++) {
-        v = notesOn[deg-1][i][1];
-        if(v > max) {
-          max = v;
-        }
-      }
-      velocity[deg-1] = max;
-    }
-    else {
-      velocity[deg-1] = 0;
-    }
 
     var lm = 0;
     for(let i = 0; i < l; i++) {
@@ -958,6 +961,31 @@ function handleNoteOff(e) {
       }
       if(launchpad.isOn) {
         launchpad.noteOff(row,col);
+      }
+    }
+
+    if(l >= 1) {
+      var max = 0;
+      var v;
+      for(let i = 0; i < l; i++) {
+        v = notesOn[deg-1][i][1];
+        if(v > max) {
+          max = v;
+        }
+      }
+      velocity[deg-1] = max;
+    }
+    else {
+      velocity[deg-1] = 0;
+
+      var n0 = ndt(num);
+      for(var d = 1; d <= 7; d++) {
+        if(d != deg && notesOn[d-1].length) {
+          var n1 = ndt(notesOn[d-1][0][0]);
+          if(ndt(n1-n0) == 6) {
+            tritons[Math.min(n0,n1)] = false;
+          }
+        }
       }
     }
   }
@@ -1007,6 +1035,14 @@ function handleControl(e) {
           }
         }
       }
+      /*if(e.controller.number == 80) {
+        if(e.value == 127) {
+          launchpad.output.send(noteOnStatus,[80,3]);
+        }
+        else {
+          launchpad.output.send(noteOnStatus,[80,0]);
+        }
+      }*/
     }
   }
 }
