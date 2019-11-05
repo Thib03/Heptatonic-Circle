@@ -295,7 +295,7 @@ class Note {
   }
 
   update() {
-    let vel = this.velocity;
+    let vel = 6.5*(-pow(0.5*this.velocity/6.5-1,4)+1);
     let r = (littleRadius-vel*weight/2)*dimension;
     this.button.resize(2*r,2*r);
     this.button.locate(width/2 +bigRadius*dimension*cos(this.angle)-r,
