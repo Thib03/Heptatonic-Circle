@@ -760,7 +760,8 @@ function enableMidi() {
     numStr = '0';
 
     if(taille == 0) {
-      window.alert("No MIDI output device detected.");
+      window.alert("No MIDI output device detected. A sinewave polyphonic synth will be used as output.");
+      synth = new PolySynth(6);
       return;
     }
 
