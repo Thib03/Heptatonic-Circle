@@ -50,9 +50,9 @@ for(let i = 0; i < 6; i++) {
   tritons[i] = false;
 }
 
-let t1 = 0.001;
+let t1 = 0.01;
 let l1 = 1; // velocity
-let t2 = 0.1;
+let t2 = 0.01;
 let l2 = 0.5; // aftertouch
 let t3 = 0.3;
 let l3 = 0;
@@ -346,21 +346,25 @@ class Note {
   }
 }
 
+class Voice {
+  constructor() {
+    this.pit = -1;
+    this.osc = new p5.Oscillator();
+    this.env = new p5.Envelope();
+
+    this.osc.setType('sine');
+    this.osc.amp(this.env);
+    this.osc.start();
+  }
+}
+
 class PolySynth {
   constructor(num) {
     this.voices = [];
+    this.reverb = new p5.Reverb();
     for(let v = 0; v < num; v++) {
-      var env = new p5.Envelope();
-      var osc = new p5.Oscillator();
-      //var fil = new p5.LowPass();
-      osc.setType('sine');
-      osc.amp(env);
-      /*osc.disconnect();
-      osc.connect(fil);
-      fil.amp(1);
-      fil.freq(maxFreq);*/
-      osc.start();
-      this.voices.push([-1,osc,env]);//,fil]);
+      this.voices.push(new Voice());
+      this.reverb.process(this.voices[v].osc,1,2);
     }
   }
 
@@ -369,7 +373,7 @@ class PolySynth {
     var voi = -1;
     for(let v = 0; v < this.voices.length; v++) {
       var voice = this.voices[v];
-      if(voice[0] == pit) {
+      if(voice.pit == pit) {
         voi = v;
         break;
       }
@@ -377,19 +381,18 @@ class PolySynth {
     if(voi == -1) {
       for(let v = 0; v < this.voices.length; v++) {
         var voice = this.voices[v];
-        if(voice[0] == -1) {
+        if(voice.pit == -1) {
           voi = v;
           break;
         }
       }
     }
     if(voi >= 0) {
-      var voice = this.voices[voi]
-      voice[0] = pit;
-      voice[1].freq(frq);
-      voice[2].set(t1,vel,t2,l2*vel,t3,l3);
-      //voice[3].freq(vel*maxFreq+100);
-      voice[2].triggerAttack();
+      var voice = this.voices[voi];
+      voice.pit = pit;
+      voice.osc.freq(frq);
+      voice.env.set(t1,vel,t2,l2*vel,t3,l3);
+      voice.env.triggerAttack();
     }
     else {
       console.log('Maximum number of voices reached.');
@@ -399,9 +402,8 @@ class PolySynth {
   noteAftertouch(pit,vel) {
     for(let v = 0; v < this.voices.length; v++) {
       var voice = this.voices[v];
-      if(voice[0] == pit) {
-        //voice[3].freq(vel*maxFreq+100);
-        //voice[1].amp(vel);
+      if(voice.pit == pit) {
+        voice.env.ramp(voice[1],0,l2*vel);
         break;
       }
     }
@@ -410,10 +412,9 @@ class PolySynth {
   noteRelease(pit) {
     for(let v = 0; v < this.voices.length; v++) {
       var voice = this.voices[v];
-      if(voice[0] == pit) {
-        voice[0] = -1;
-        voice[2].triggerRelease();
-        //voice[3].freq(maxFreq);
+      if(voice.pit == pit) {
+        voice.pit = -1;
+        voice.env.triggerRelease();
         break;
       }
     }
