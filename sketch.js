@@ -32,7 +32,9 @@ var midiRadius = 0.35*littleRadius;
 var midiInput, midiOutput;
 
 var hasSequencer = false;
+var hasKeylinder = false;
 var sequencerOutput;
+var keylinderOutput;
 
 var launchpad;
 
@@ -43,6 +45,8 @@ var aftertouchStatus = 160;
 var synth;
 
 var font, fontLight;
+
+var fundamental = 84;
 
 var tritons = [];
 
@@ -211,15 +215,18 @@ class Note {
               if(note.d == fonDeg) {
                 for(let d = 2; d <= 7; d++) {
                   notes[(fonDeg+d+5)%7].updateText();
+                  //checkKeylinder();
                 }
               }
             }
             else if(dragDist < dragLimit*dimension) {
               triggerColors(note.d);
+              //checkKeylinder();
             }
           }
         }
         note.angle = PI/2 - note.n*PI/6;
+        checkKeylinder();
         note.updateText();
         note.update();
       }
@@ -575,6 +582,10 @@ function preload() {
   fontLight = loadFont('nunito_extra_light.ttf');
 }
 
+/*var buf = new Float32Array( 1024 );
+var MIN_SAMPLES = 0;
+var GOOD_ENOUGH_CORRELATION = 0.9;*/
+
 function setup() {
   createCanvas(windowWidth, windowHeight);
 
@@ -588,6 +599,11 @@ function setup() {
 
   midiHandler = new MidiHandler();
 
+  /*mic = new p5.AudioIn()
+  mic.start();
+  fft = new p5.FFT();
+  fft.setInput(mic);*/
+
   userStartAudio().then(function() {
      console.log('Audio ready');
    });
@@ -596,12 +612,24 @@ function setup() {
 function draw() {
   background(white);
 
-  //console.log(launchpad.lightGrid);
-
   noFill();
   stroke(black);
   strokeWeight(weight*dimension);
   circle(width/2,height/2,2*bigRadius*dimension,2*bigRadius*dimension);
+
+  /*var amp = floor(1000*mic.amplitude.volume);
+  if(amp > 60) {
+    let buf = fft.waveform();
+    let freq = autoCorrelate(buf, sampleRate() );
+    let pc = 12*log(freq/16.3515)/log(2);
+    while(pc >= 12) {
+      pc -= 12;
+    }
+    //console.log(pc);
+    let r = bigRadius*dimension;
+    let a = PI/2 - pc*PI/6;
+    line(width/2,height/2,width/2+r*cos(a+PI),height/2-r*sin(a+PI))
+  }*/
 
   for(let n = 0; n < 12; n++) {
     let a = PI/2 - n*PI/6;
@@ -684,6 +712,12 @@ function enableMidi() {
         if(!WebMidi.inputs[i].hasListener('noteon',      'all', handleScale)) {
           WebMidi.inputs[i].addListener('noteon',        'all', handleScale);
         }
+      }
+      else if(name.includes('Keylinder output')) {
+        if(!WebMidi.inputs[i].hasListener('noteon',      'all', handleKeylinder)) {
+          WebMidi.inputs[i].addListener('noteon',        'all', handleKeylinder);
+        }
+        console.log('Keylinder input ok');
       }
     }
 
@@ -774,6 +808,12 @@ function enableMidi() {
       if(name.includes('Sequencer')) {
         hasSequencer = true;
         sequencerOutput = WebMidi.outputs[i];
+      }
+      else if(name.includes('Keylinder input')) {
+        keylinderOutput = WebMidi.outputs[i];
+        console.log('Keylinder output ok');
+        hasKeylinder = true;
+        checkKeylinder();
       }
     }
 
@@ -1078,6 +1118,98 @@ function handleScale(e) {
   }
 }
 
+function checkKeylinder() {
+  if(!hasKeylinder) return;
+  fundamental = 84;
+  if(fonDeg) {
+    var newScale = [];
+    for(let d = 0; d < 7; d++) {
+      newScale.push(ndt(notes[deg(fonDeg+d)-1].n-notes[fonDeg-1].n));
+    }
+    var fMod = 7;
+    if(newScale[1] == 1 &&
+       newScale[2] == 3 &&
+       newScale[3] == 5 &&
+       newScale[5] == 8 &&
+       newScale[6] == 10) {
+      if(newScale[4] == 6) {
+        fMod = 6;
+      }
+      else if(newScale[4] == 7) {
+        fMod = 2;
+      }
+    }
+    else if(newScale[1] == 2 &&
+            newScale[4] == 7) {
+      if(newScale[2] == 4 &&
+         newScale[5] == 9) {
+        if(newScale[3] == 5) {
+          if(newScale[6] == 10) {
+            fMod = 4;
+          }
+          else if(newScale[6] == 11) {
+            fMod = 0;
+          }
+        }
+        else if(newScale[3] == 6 &&
+                newScale[6] == 11) {
+          fMod = 3;
+        }
+      }
+      else if(newScale[2] == 3 &&
+              newScale[3] == 5 &&
+              newScale[6] == 10) {
+        if(newScale[5] == 8) {
+          fMod = 5;
+        }
+        else if(newScale[5] == 9) {
+          fMod = 1;
+        }
+      }
+    }
+    if(fMod != 7) {
+      var fMaj;
+      var tempN = notes[deg(fonDeg-fMod)-1].n;
+      var i = 0;
+      while(ndt(1+7*i) != tempN) {
+        i++;
+      }
+      fMaj = i;
+      fundamental = fMaj*7+fMod;
+    }
+  }
+  keylinderOutput.send(noteOnStatus,[fundamental,100]);
+}
+
+function handleKeylinder(e) {
+  let f = e.note.number;
+  let d = (8+4*floor(f/7))%7+1;
+  let a = 0;
+  switch(floor(f/7)) {
+    case 0:
+    case 1:
+    case 2:
+    case 3: a = -1; break;
+    case 11: a = 1; break;
+  }
+  triggerColors(deg(d+f%7),true);
+  var major = [];
+  for(let m = 0; m < 7; m++) {
+    major.push(ndt(degToNdt(d)+degToNdt(m+1)-degToNdt(1)+a));
+  }
+  let i = fonDeg-1;
+  for(relD = 1; relD <= 7; relD++) {
+    var note = notes[i];
+    //let newNdt = ndt(degToNdt(d+f%7)+degToNdt(relD+f%7)-degToNdt(f%7+1));
+    note.n = major[deg(f%7+relD)-1];
+    note.angle = PI/2 - note.n*PI/6;
+    note.updateText();
+    note.update();
+    i++;
+    i %= 7;
+  }
+}
+
 function disableMidi() {
   midi = 0;
 
@@ -1090,3 +1222,62 @@ function disableMidi() {
   //midiButton.color  = white;
   //midiButton.stroke = black;
 }
+
+//----------------------------------------------------------------------------
+//                        Pitch detection
+//----------------------------------------------------------------------------
+
+/*function autoCorrelate( buf, sampleRate ) {
+          var SIZE = buf.length;
+      var MAX_SAMPLES = Math.floor(SIZE/2);
+          var best_offset = -1;
+      var best_correlation = 0;
+      var rms = 0;
+      var foundGoodCorrelation = false;
+      var correlations = new Array(MAX_SAMPLES);
+
+for (var i=0;i<SIZE;i++) {
+	var val = buf[i];
+	rms += val*val;
+}
+rms = Math.sqrt(rms/SIZE);
+if (rms<0.01) // not enough signal
+	return -1;
+
+var lastCorrelation=1;
+for (var offset = MIN_SAMPLES; offset < MAX_SAMPLES; offset++) {
+	var correlation = 0;
+
+	for (var i=0; i<MAX_SAMPLES; i++) {
+		correlation += Math.abs((buf[i])-(buf[i+offset]));
+	}
+	correlation = 1 - (correlation/MAX_SAMPLES);
+	correlations[offset] = correlation; // store it, for the tweaking we need to do below.
+	if ((correlation>GOOD_ENOUGH_CORRELATION) && (correlation > lastCorrelation)) {
+		foundGoodCorrelation = true;
+		if (correlation > best_correlation) {
+			best_correlation = correlation;
+			best_offset = offset;
+		}
+	} else if (foundGoodCorrelation) {
+		// short-circuit - we found a good correlation, then a bad one, so we'd just be seeing copies from here.
+		// Now we need to tweak the offset - by interpolating between the values to the left and right of the
+		// best offset, and shifting it a bit.  This is complex, and HACKY in this code (happy to take PRs!) -
+		// we need to do a curve fit on correlations[] around best_offset in order to better determine precise
+		// (anti-aliased) offset.
+
+		// we know best_offset >=1,
+		// since foundGoodCorrelation cannot go to true until the second pass (offset=1), and
+		// we can't drop into this clause until the following pass (else if).
+		var shift = (correlations[best_offset+1] - correlations[best_offset-1])/correlations[best_offset];
+		return sampleRate/(best_offset+(8*shift));
+	}
+	lastCorrelation = correlation;
+}
+if (best_correlation > 0.01) {
+	// console.log("f = " + sampleRate/best_offset + "Hz (rms: " + rms + " confidence: " + best_correlation + ")")
+	return sampleRate/best_offset;
+}
+return -1;
+   //	var best_frequency = sampleRate/best_offset;
+ }*/
