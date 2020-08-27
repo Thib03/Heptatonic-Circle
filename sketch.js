@@ -215,13 +215,11 @@ class Note {
               if(note.d == fonDeg) {
                 for(let d = 2; d <= 7; d++) {
                   notes[(fonDeg+d+5)%7].updateText();
-                  //checkKeylinder();
                 }
               }
             }
             else if(dragDist < dragLimit*dimension) {
               triggerColors(note.d);
-              //checkKeylinder();
             }
           }
         }
@@ -865,6 +863,7 @@ function handleNoteOn(e) {
   if(deg) {
     if(nextNote) {
       triggerColors(deg);
+      checkKeylinder();
     }
     var vel = e.velocity;
     num = notes[deg-1].midiNumber(oct);
@@ -1071,6 +1070,7 @@ function handleControl(e) {
             notes[n].angle = PI/2 - notes[n].n*PI/6;
             notes[n].updateText();
             notes[n].update();
+            checkKeylinder();
           }
           else {
             launchpad.output.send(noteOnStatus,[d*10,degToColor(d,true)]);
@@ -1105,6 +1105,7 @@ function handleScale(e) {
       return a[0] - b[0];
     });
     triggerColors(midiScale[0][1],true);
+    checkKeylinder();
     let i = fonDeg-1;
     for(let d = 1; d <= 7; d++) {
       var note = notes[i];
