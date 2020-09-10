@@ -44,7 +44,7 @@ var aftertouchStatus = 160;
 
 var synth;
 
-var font, fontLight;
+var fontLight, font, fontBold;
 
 var fundamental = 84;
 
@@ -166,6 +166,138 @@ function triggerColors(deg,overwrite = false) {
   }
 }
 
+function getScaleName()
+{
+    if(!fonDeg) {
+      console.log('nop not now');
+      return;
+    }
+
+    var al = [];
+    var n;
+    for(n = 1; n < 7; n++)
+        al.push(notes[deg(fonDeg+n)-1].relAlt());
+
+    if(true) // is diatonic
+    {
+      switch(al.toString()) {
+        case [ 0, 0, 0, 0, 0, 0].toString(): return "ionian"; //-----------------
+        case [ 0,-1, 0, 0, 0,-1].toString(): return "dorian";
+        case [-1,-1, 0, 0,-1,-1].toString(): return "phrygian";
+        case [ 0, 0, 1, 0, 0, 0].toString(): return "lydian";
+        case [ 0, 0, 0, 0, 0,-1].toString(): return "mixolydian";
+        case [ 0,-1, 0, 0,-1,-1].toString(): return "aeolian";
+        case [-1,-1, 0,-1,-1,-1].toString(): return "locrian";
+        case [ 0,-1, 0, 0, 0, 0].toString(): return "melodic minor"; //----------
+        case [-1,-1, 0, 0, 0,-1].toString(): return "dorian b9";
+        case [ 0, 0, 1, 1, 0, 0].toString(): return "augmented lydian";
+        case [ 0, 0, 1, 0, 0,-1].toString(): return "lydian dominant";
+        case [ 0, 0, 0, 0,-1,-1].toString(): return "mixolydian b13";
+        case [ 0,-1, 0,-1,-1,-1].toString(): return "half diminished";
+        case [-1,-1,-1,-1,-1,-1].toString(): return "altered";
+        case [ 0, 0, 0, 0,-1, 0].toString(): return "harmonic major"; //---------
+        case [ 0,-1, 0,-1, 0,-1].toString(): return "locrian 9 13";
+        case [ 0,-1, 1, 0, 0, 0].toString(): return "minor lydian";
+        case [-1, 0, 0, 0, 0,-1].toString(): return "mixolydian b9";
+        case [ 1, 0, 1, 1, 0, 0].toString(): return "super augmented";
+        case [-1,-1, 0,-1,-1,-2].toString(): return "diminished locrian";
+        case [ 0,-1, 0, 0,-1, 0].toString(): return "harmonic minor"; //---------
+        case [-1,-1, 0,-1, 0,-1].toString(): return "locrian 13";
+        case [ 0, 0, 0, 1, 0, 0].toString(): return "augmented ionian";
+        case [ 0,-1, 1, 0, 0,-1].toString(): return "dorian #11";
+        case [-1, 0, 0, 0,-1,-1].toString(): return "mixolydian b9 b13";
+        case [ 1, 0, 1, 0, 0, 0].toString(): return "lydian #9";
+        case [-1,-1,-1,-1,-1,-2].toString(): return "diatonic diminished";
+        default: return "unknown";
+      }
+    }
+
+    /*else if(nbrn() == 7)
+    {
+        if(     getNbrRelDeg(2) == 2 &&
+                getNbrRelDeg(5) == 0 &&
+                al == Array<int>(-1, 1, 0, 1,-1,-1)) return s + "altered dominant";
+        else if(getNbrRelDeg(2) == 2 &&
+                getNbrRelDeg(4) == 0 &&
+                al == Array<int>(-1, 1, 0, 0,-1,-1)) return s + "altered 5";
+        else if(getNbrRelDeg(2) == 2 &&
+                getNbrRelDeg(7) == 0 &&
+                al == Array<int>(-1, 1, 0, 1, 1, 0)) return s + "altered augmented";
+        else                                         return s + unknownScale(al);
+    }
+
+    else if(nbrn() == 8)
+    {
+        if(     getNbrRelDeg(2) == 2 &&
+                al == Array<int>(-1, 1, 0, 1, 0, 0,-1)) return s + "diminished 1/2 1";
+        else if(getNbrRelDeg(7) == 2)
+        {
+            if(     al == Array<int>( 0,-1, 0,-1,-1,-2, 0))  return s + "diminished 1 1/2";
+            else if(al == Array<int>( 0, 0, 0, 0, 0,-1, 0))  return s + "bebop dominant";
+            else                                             return s + unknownScale(al);
+        }
+        else if(getNbrRelDeg(4) == 2 &&
+                al == Array<int>( 0,-1,-1, 0, 0, 0,-1)) return s + "bebop dorian";
+        else if(getNbrRelDeg(6) == 2)
+        {
+            if(     al == Array<int>( 0, 0, 0, 0,-1, 0, 0))  return s + "bebop major";
+            else if(al == Array<int>( 0,-1, 0, 0,-1, 0, 0))  return s + "bebop minor";
+            else                                             return s + unknownScale(al);
+        }
+        else                                            return s + unknownScale(al);
+    }
+
+    else if(nbrn() == 12)
+    {
+        return s + "chromatic";
+    }
+
+    else if(nbrn() == 6)
+    {
+        if     (getNbrRelDeg(6) == 0 &&
+                al == Array<int>( 0, 0, 1, 1,-1)) return s + "whole tone";
+        else if(getNbrRelDeg(4) == 2 &&
+                al == Array<int>(-1, 0, 1, 0,-1)) return s + "blues";
+        else                                 return s + unknownScale(al);
+    }
+
+    else if(nbrn() == 5)
+    {
+        if     (getNbrRelDeg(4) == 0 &&
+                getNbrRelDeg(7) == 0 &&
+                al == Array<int>( 0, 0, 0, 0)) return s + "pentatonic";
+        else if(getNbrRelDeg(3) == 0 &&
+                getNbrRelDeg(6) == 0 &&
+                al == Array<int>( 0, 0, 0,-1)) return s + "pentatonic II";
+        else if(getNbrRelDeg(2) == 0 &&
+                getNbrRelDeg(5) == 0 &&
+                al == Array<int>(-1, 0,-1,-1)) return s + "pentatonic III";
+        else if(getNbrRelDeg(3) == 0 &&
+                getNbrRelDeg(7) == 0 &&
+                al == Array<int>( 0, 0, 0, 0)) return s + "pentatonic IV";
+        else if(getNbrRelDeg(2) == 0 &&
+                getNbrRelDeg(6) == 0 &&
+                al == Array<int>(-1, 0, 0,-1)) return s + "minor pentatonic";
+        else                                   return s + unknownScale(al);
+    }
+
+    else if(nbrn() == 4 &&
+            getNbrRelDeg(3) == 1 &&
+            getNbrRelDeg(5) == 1 &&
+            getNbrRelDeg(7) == 1)
+    {
+        if     (al == Array<int>( 0, 1, 0)) return s + "augmented";
+        else if(al == Array<int>( 0, 0, 0)) return s + "major";
+        else if(al == Array<int>( 0, 0,-1)) return s + "dominant";
+        else if(al == Array<int>(-1, 0, 0)) return s + "minor";
+        else if(al == Array<int>(-1, 0,-1)) return s + "minor subdominant";
+        else if(al == Array<int>(-1,-1,-1)) return s + "half diminished";
+        else if(al == Array<int>(-1,-1,-2)) return s + "diminished";
+        else                                return s + unknownScale(al);
+    }
+    else return s + unknownScale(al);*/
+}
+
 class Note {
   constructor(degree) {
     this.d = degree;
@@ -233,8 +365,12 @@ class Note {
     this.update();
   }
 
-  alt() {
+  absAlt() {
     return alt(this.n-degToNdt(this.d));
+  }
+
+  relAlt() {
+    return alt(ndt(this.n-notes[fonDeg-1].n)-degToNdt(this.d-notes[fonDeg-1].d+1));
   }
 
   midiNumber(octave) {
@@ -260,7 +396,7 @@ class Note {
 
   updateText() {
     var text = '';
-    if(!fonDeg) {
+    //if(!fonDeg) {
       switch(this.d) {
         default:
         case 1: text += 'C'; break;
@@ -271,7 +407,7 @@ class Note {
         case 6: text += 'A'; break;
         case 7: text += 'B'; break;
       }
-      var a = this.alt();
+      var a = this.absAlt();
       switch(a) {
         case -3: text += 'bbb';break;
         case -2: text += 'bb'; break;
@@ -282,9 +418,11 @@ class Note {
         case  3: text += '###';break;
         default: text += Math.abs(a) + (a>0?'#':'b'); break;
       }
-    }
-    else {
-      var a = alt(ndt(this.n-notes[fonDeg-1].n)-degToNdt(this.d-notes[fonDeg-1].d+1));
+      this.absText = text;
+      text = '';
+    //}
+    if(fonDeg) {
+      a = this.relAlt();
       switch(a) {
         case -3: text += '---';break;
         case -2: text += '--'; break;
@@ -296,7 +434,7 @@ class Note {
         default: text += Math.abs(a) + (a>0?'+':'-');  break;
       }
     }
-    this.text = text;
+    this.relText = text;
   }
 
   update() {
@@ -341,7 +479,7 @@ class Note {
       adjustY = -0.01*dimension;
     }
     textFont(font);
-    text(this.text,this.button.x+this.button.width/2,
+    text(fonDeg?this.relText:this.absText,this.button.x+this.button.width/2,
                    this.button.y+this.button.height/2+adjustY);
   }
 
@@ -553,8 +691,9 @@ class MidiHandler {
   update() {
     let r = midiRadius*dimension;
     this.button.resize(2*r,2*r);
+    this.adjustY = 0.021*dimension;
     this.button.locate(width/2 -r,
-                       height/2-r);
+                       height/2-r+this.adjustY);
     this.button.strokeWeight = weight*dimension;
   }
 
@@ -567,17 +706,18 @@ class MidiHandler {
     let br = 0.6*midiRadius*dimension;
     for(let n = 0; n < 5; n++) {
       let a = n*PI/4;
-      circle(width/2+br*cos(a),height/2-br*sin(a),2*r,2*r);
+      circle(width/2+br*cos(a),height/2-br*sin(a)+this.adjustY,2*r,2*r);
     }
     let l = 0.7*midiRadius*dimension;
     let h = 0.35*midiRadius*dimension;
-    rect(width/2-l/2,height/2+1.1*br,l,h,h);
+    rect(width/2-l/2,height/2+1.1*br+this.adjustY,l,h,h);
   }
 }
 
 function preload() {
-  font      = loadFont('nunito_light.ttf');
-  fontLight = loadFont('nunito_extra_light.ttf');
+  fontLight = loadFont('nunito_extralight.ttf');
+  font     = loadFont('nunito_light.ttf');
+  fontBold = loadFont('nunito_semibold.ttf');
 }
 
 /*var buf = new Float32Array( 1024 );
@@ -666,6 +806,16 @@ function draw() {
 
   if(!midi) {
     midiHandler.draw();
+  }
+
+  if(fonDeg) {
+    console.log(notes[fonDeg-1].absText+' '+getScaleName());
+    textSize(0.124*dimension);
+    textFont(fontLight);
+    text(notes[fonDeg-1].absText,width/2,height/2-0.1*dimension);
+    textSize(0.045*dimension);
+    textFont(fontBold);
+    text(getScaleName(),width/2,height/2+0.085*dimension);
   }
 }
 
