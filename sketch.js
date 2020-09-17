@@ -896,6 +896,7 @@ function enableMidi() {
         name += '.\nColours will be displayed on the matrix. Please put your Launchpad Pro into Programmer Mode';
       }*/
       if(name.includes('Launchpad Pro')) {
+        console.log(num)
         let x = num<2?0:(WebMidi.inputs[num-2].name.includes('Launchpad Pro'));
         let y = (WebMidi.inputs[num  ].name.includes('Launchpad Pro'));
         var offset;
